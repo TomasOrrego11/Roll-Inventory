@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% set title = "Roll Inventory" %}
+{% block content %}
+<a class="btn" href="{{ url_for('add_form', warehouse='WH1') }}">1) Add to Warehouse 1 (WH1)</a>
+<a class="btn" href="{{ url_for('add_form', warehouse='WH2') }}">2) Add to Warehouse 2 (WH2)</a>
+
+<a class="btn" href="{{ url_for('transfer_form', from_loc='WH1', to_loc='WH2') }}">3) Transfer WH1 → WH2</a>
+<a class="btn" href="{{ url_for('transfer_form', from_loc='WH2', to_loc='WH1') }}">4) Transfer WH2 → WH1</a>
+
+<a class="btn" href="{{ url_for('inventory', warehouse='WH1') }}">View Inventory WH1</a>
+<a class="btn" href="{{ url_for('inventory', warehouse='WH2') }}">View Inventory WH2</a>
+
+<a class="btn" href="{{ url_for('search') }}">Search by PaperType</a>
+
+<p class="muted">
+Scanner tip: tap the RollID field to put the cursor there, then scan. Your Zebra adds ENTER automatically, great.
+</p>
+{% endblock %}
