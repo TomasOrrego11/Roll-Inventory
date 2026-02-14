@@ -11,9 +11,10 @@
     <tr>
       <th>RollID</th>
       <th>PaperType</th>
-      <th>Warehouse</th>
+      <th>WH</th>
       <th>Subloc</th>
-      <th>Weight (lbs)</th>
+      <th>Weight</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody>
@@ -24,8 +25,17 @@
         <td>{{ r.warehouse }}</td>
         <td>{{ r.sublocation }}</td>
         <td>{{ r.weight_lbs }}</td>
+        <td>
+          <a class="btn inline" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Move/Edit</a>
+          <a class="btn inline" href="{{ url_for('consume_form') }}">Consume</a>
+          <a class="btn inline" href="{{ url_for('remove_form') }}">Remove</a>
+        </td>
       </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<p class="muted">
+Tip: For Consume/Remove, open the page and scan the RollID (fast with Zebra). For PC edits, use Move/Edit.
+</p>
 {% endblock %}
