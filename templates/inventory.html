@@ -1,59 +1,40 @@
-{% extends "base.html" %}
 {% set title = "Inventory " ~ warehouse %}
+{% extends "base.html" %}
 {% block content %}
-<a class="btn inline" href="{{ url_for('home') }}">Back</a>
-<a class="btn inline" href="{{ url_for('search') }}">Search</a>
+  <h2>Inventory: {{ warehouse }}</h2>
 
-<p><b>Total rolls:</b> {{ totals.cnt }} &nbsp; | &nbsp; <b>Total weight (lbs):</b> {{ totals.total_weight }}</p>
+  <div class="stats">
+    <div><strong>Rolls:</strong> {{ totals.cnt }}</div>
+    <div><strong>Total Weight:</strong> {{ totals.total_weight }}</div>
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>RollID</th>
-      <th>PaperType</th>
-      <th>WH</th>
-      <th>Subloc</th>
-      <th>Weight</th>
-      <th style="min-width:240px;">Actions (PC)</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in rows %}
+  <table>
+    <thead>
       <tr>
-        <td>{{ r.roll_id }}</td>
+        <th>Paper Type</th>
+        <th>Roll ID</th>
+        <th>Weight</th>
+        <th>Subloc</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
         <td>{{ r.paper_type }}</td>
-        <td>{{ r.warehouse }}</td>
-        <td>{{ r.sublocation }}</td>
+        <td class="mono">{{ r.roll_id }}</td>
         <td>{{ r.weight_lbs }}</td>
-        <td>
+        <td>{{ r.sublocation }}</td>
+        <td class="actions">
           <a class="btn inline" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Move/Edit</a>
-
-          {% if r.warehouse not in ['CONSUMED','USED'] %}
-            <form method="post" action="{{ url_for('consume_roll_pc', roll_id=r.roll_id) }}" style="display:inline;">
-              <button class="btn inline" type="submit"
-                onclick="return confirm('Consume {{ r.roll_id }}? This will move it to CONSUMED.');">
-                Consume
-              </button>
-            </form>
-
-            <form method="post" action="{{ url_for('remove_roll_pc', roll_id=r.roll_id) }}" style="display:inline;">
-              <button class="btn inline" type="submit"
-                onclick="return confirm('Remove {{ r.roll_id }}? This will move it to USED.');">
-                Remove
-              </button>
-            </form>
-          {% endif %}
-
-          {% if r.warehouse in ['CONSUMED','USED'] %}
-            <a class="btn inline" href="{{ url_for('restore_form', roll_id=r.roll_id) }}">Restore</a>
+          {% if warehouse != "USED" %}
+          <form method="post" action="{{ url_for('remove_roll_pc', roll_id=r.roll_id) }}" style="display:inline">
+            <button class="btn danger inline" type="submit">To USED</button>
+          </form>
           {% endif %}
         </td>
       </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<p class="muted">
-“Consume” moves to CONSUMED. “Remove” moves to USED. “Restore” brings it back to WH1/WH2 with a sublocation.
-</p>
+      {% endfor %}
+    </tbody>
+  </table>
 {% endblock %}
