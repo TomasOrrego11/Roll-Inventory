@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% set title = "Search by PaperType" %}
+{% block content %}
+<a class="btn inline" href="{{ url_for('home') }}">Back</a>
+
+<form method="get" autocomplete="off" style="margin-top:10px;">
+  <label>Search PaperType (partial is ok)</label>
+  <input name="q" value="{{ q }}" placeholder="e.g., FSC38" autofocus>
+  <button class="btn" type="submit">Search</button>
+</form>
+
+{% if q_norm %}
+  <h3>Matches</h3>
+  {% if matches|length == 0 %}
+    <p class="muted">No PaperType matches found.</p>
+  {% else %}
+    <ul>
+      {% for m in matches %}
+        <li>
+          <a href="{{ url_for('search', q=q, paper=m.paper_type) }}">{{ m.paper_type }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endif %}
+
+{% if selected %}
+  <h3>Rolls for PaperType: {{ selected }}</h3>
+  {% if totals %}
+    <p>
+      <b>Total rolls:</b> {{ totals.cnt }} |
+      <b>WH1:</b> {{ totals.wh1_cnt }} |
+      <b>WH2:</b> {{ totals.wh2_cnt }} |
+      <b>Total weight (lbs):</b> {{ totals.total_weight }}
+    </p>
+  {% endif %}
+
+  {% if rolls|length == 0 %}
+    <p class="muted">No rolls found for this PaperType.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>RollID</th>
+          <th>Location</th>
+          <th>Weight (lbs)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rolls %}
+          <tr>
+            <td>{{ r.roll_id }}</td>
+            <td>{{ r.location }}</td>
+            <td>{{ r.weight_lbs }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endif %}
+{% endblock %}
