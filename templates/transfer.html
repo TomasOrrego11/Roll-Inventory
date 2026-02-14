@@ -1,11 +1,40 @@
 {% extends "base.html" %}
-{% set title = "Transfer " ~ from_loc ~ " → " ~ to_loc %}
+{% set title = "Action" %}
 {% block content %}
 <form method="post" autocomplete="off">
+
+  {% if consume_mode %}
+    {% set title = "Consume → CONSUMED" %}
+    <h3>Consume roll (move to CONSUMED)</h3>
+
+  {% elif remove_mode %}
+    {% set title = "Remove → USED" %}
+    <h3>Remove roll (move to USED)</h3>
+
+  {% else %}
+    {% set title = "Transfer " ~ from_wh ~ " → " ~ to_wh %}
+    <h3>Transfer {{ from_wh }} → {{ to_wh }}</h3>
+
+    <label>Destination Sublocation (choose once, then scan)</label>
+    <select name="dest_sublocation" required>
+      <option value="" disabled selected>Select destination sublocation</option>
+      {% for s in dest_sublocs %}
+        <option value="{{ s }}">{{ s }}</option>
+      {% endfor %}
+    </select>
+  {% endif %}
+
   <label>RollID (scan barcode)</label>
   <input name="roll_id" id="roll_id" placeholder="Scan RollID" required autofocus>
 
-  <button class="btn" type="submit">Transfer {{ from_loc }} → {{ to_loc }}</button>
+  {% if consume_mode %}
+    <button class="btn" type="submit">Consume → CONSUMED</button>
+  {% elif remove_mode %}
+    <button class="btn" type="submit">Remove → USED</button>
+  {% else %}
+    <button class="btn" type="submit">Transfer {{ from_wh }} → {{ to_wh }}</button>
+  {% endif %}
+
   <a class="btn" href="{{ url_for('home') }}">Back</a>
 </form>
 
