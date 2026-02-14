@@ -5,6 +5,14 @@
   <label>PaperType (required)</label>
   <input name="paper_type" placeholder="e.g., 7POPGLSCVRFSC38" required>
 
+  <label>Sublocation (choose once, then scan rolls)</label>
+  <select name="sublocation" required>
+    <option value="" disabled selected>Select sublocation</option>
+    {% for s in sublocs %}
+      <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+
   <label>RollID (required) — scan barcode here</label>
   <input name="roll_id" id="roll_id" placeholder="Scan RollID" required autofocus>
 
