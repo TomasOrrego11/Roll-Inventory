@@ -11,6 +11,8 @@
     <tr>
       <th>RollID</th>
       <th>PaperType</th>
+      <th>Warehouse</th>
+      <th>Subloc</th>
       <th>Weight (lbs)</th>
     </tr>
   </thead>
@@ -19,6 +21,8 @@
       <tr>
         <td>{{ r.roll_id }}</td>
         <td>{{ r.paper_type }}</td>
+        <td>{{ r.warehouse }}</td>
+        <td>{{ r.sublocation }}</td>
         <td>{{ r.weight_lbs }}</td>
       </tr>
     {% endfor %}
