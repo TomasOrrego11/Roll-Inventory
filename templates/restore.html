@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set title = "Restore Roll" %}
+{% block content %}
+<a class="btn inline" href="{{ url_for('home') }}">Back</a>
+
+<h3>Restore Roll: {{ roll.roll_id }}</h3>
+<p class="muted">Current location: <b>{{ roll.warehouse }}</b></p>
+
+<form method="post" autocomplete="off">
+  <label>Restore to Warehouse</label>
+  <select name="warehouse" id="warehouse" required>
+    <option value="WH1">WH1</option>
+    <option value="WH2">WH2</option>
+  </select>
+
+  <label>Sublocation</label>
+  <select name="sublocation" id="sublocation" required></select>
+
+  <button class="btn" type="submit"
+    onclick="return confirm('Restore {{ roll.roll_id }} to the selected warehouse/sublocation?');">
+    Restore
+  </button>
+</form>
+
+<script>
+  const wh1 = {{ wh1_sublocs|tojson }};
+  const wh2 = {{ wh2_sublocs|tojson }};
+  const whEl = document.getElementById("warehouse");
+  const subEl = document.getElementById("sublocation");
+
+  function fill(list) {
+    subEl.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select sublocation";
+    subEl.appendChild(placeholder);
+
+    list.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      subEl.appendChild(opt);
+    });
+    subEl.value = "";
+  }
+
+  whEl.addEventListener("change", () => {
+    if (whEl.value === "WH1") fill(wh1);
+    else fill(wh2);
+  });
+
+  // initial
+  fill(wh1);
+</script>
+{% endblock %}
