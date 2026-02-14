@@ -14,7 +14,7 @@
       <th>WH</th>
       <th>Subloc</th>
       <th>Weight</th>
-      <th>Actions</th>
+      <th style="min-width:240px;">Actions (PC)</th>
     </tr>
   </thead>
   <tbody>
@@ -27,8 +27,26 @@
         <td>{{ r.weight_lbs }}</td>
         <td>
           <a class="btn inline" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Move/Edit</a>
-          <a class="btn inline" href="{{ url_for('consume_form') }}">Consume</a>
-          <a class="btn inline" href="{{ url_for('remove_form') }}">Remove</a>
+
+          {% if r.warehouse not in ['CONSUMED','USED'] %}
+            <form method="post" action="{{ url_for('consume_roll_pc', roll_id=r.roll_id) }}" style="display:inline;">
+              <button class="btn inline" type="submit"
+                onclick="return confirm('Consume {{ r.roll_id }}? This will move it to CONSUMED.');">
+                Consume
+              </button>
+            </form>
+
+            <form method="post" action="{{ url_for('remove_roll_pc', roll_id=r.roll_id) }}" style="display:inline;">
+              <button class="btn inline" type="submit"
+                onclick="return confirm('Remove {{ r.roll_id }}? This will move it to USED.');">
+                Remove
+              </button>
+            </form>
+          {% endif %}
+
+          {% if r.warehouse in ['CONSUMED','USED'] %}
+            <a class="btn inline" href="{{ url_for('restore_form', roll_id=r.roll_id) }}">Restore</a>
+          {% endif %}
         </td>
       </tr>
     {% endfor %}
@@ -36,6 +54,6 @@
 </table>
 
 <p class="muted">
-Tip: For Consume/Remove, open the page and scan the RollID (fast with Zebra). For PC edits, use Move/Edit.
+“Consume” moves to CONSUMED. “Remove” moves to USED. “Restore” brings it back to WH1/WH2 with a sublocation.
 </p>
 {% endblock %}
