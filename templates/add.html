@@ -5,18 +5,18 @@
   <label>PaperType (required)</label>
   <input name="paper_type" placeholder="e.g., 7POPGLSCVRFSC38" required>
 
-  <label>Sublocation (choose once, then scan rolls)</label>
+  <label>Sublocation (sticky)</label>
   <select name="sublocation" required>
-    <option value="" disabled selected>Select sublocation</option>
+    <option value="" disabled {% if not sticky_subloc %}selected{% endif %}>Select sublocation</option>
     {% for s in sublocs %}
-      <option value="{{ s }}">{{ s }}</option>
+      <option value="{{ s }}" {% if sticky_subloc == s %}selected{% endif %}>{{ s }}</option>
     {% endfor %}
   </select>
 
-  <label>RollID (required) — scan barcode here</label>
+  <label>RollID (scan barcode)</label>
   <input name="roll_id" id="roll_id" placeholder="Scan RollID" required autofocus>
 
-  <label>Weight (lbs, integer) (required)</label>
+  <label>Weight (lbs, integer)</label>
   <input name="weight_lbs" placeholder="e.g., 2945" inputmode="numeric" required>
 
   <button class="btn" type="submit">Add to {{ warehouse }}</button>
