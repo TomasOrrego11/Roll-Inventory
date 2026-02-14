@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set title = "Inventory " ~ warehouse %}
+{% block content %}
+<a class="btn inline" href="{{ url_for('home') }}">Back</a>
+<a class="btn inline" href="{{ url_for('search') }}">Search</a>
+
+<p><b>Total rolls:</b> {{ totals.cnt }} &nbsp; | &nbsp; <b>Total weight (lbs):</b> {{ totals.total_weight }}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>RollID</th>
+      <th>PaperType</th>
+      <th>Weight (lbs)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.roll_id }}</td>
+        <td>{{ r.paper_type }}</td>
+        <td>{{ r.weight_lbs }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
