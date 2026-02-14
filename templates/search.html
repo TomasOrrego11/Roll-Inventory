@@ -9,16 +9,14 @@
   <button class="btn" type="submit">Search</button>
 </form>
 
-{% if q_norm %}
+{% if q %}
   <h3>Matches</h3>
   {% if matches|length == 0 %}
     <p class="muted">No PaperType matches found.</p>
   {% else %}
     <ul>
       {% for m in matches %}
-        <li>
-          <a href="{{ url_for('search', q=q, paper=m.paper_type) }}">{{ m.paper_type }}</a>
-        </li>
+        <li><a href="{{ url_for('search', q=q, paper=m.paper_type) }}">{{ m.paper_type }}</a></li>
       {% endfor %}
     </ul>
   {% endif %}
@@ -26,12 +24,15 @@
 
 {% if selected %}
   <h3>Rolls for PaperType: {{ selected }}</h3>
+
   {% if totals %}
     <p>
-      <b>Total rolls:</b> {{ totals.cnt }} |
+      <b>Total:</b> {{ totals.cnt }} |
       <b>WH1:</b> {{ totals.wh1_cnt }} |
       <b>WH2:</b> {{ totals.wh2_cnt }} |
-      <b>Total weight (lbs):</b> {{ totals.total_weight }}
+      <b>CONSUMED:</b> {{ totals.consumed_cnt }} |
+      <b>USED:</b> {{ totals.used_cnt }} |
+      <b>Total lbs:</b> {{ totals.total_weight }}
     </p>
   {% endif %}
 
@@ -42,7 +43,8 @@
       <thead>
         <tr>
           <th>RollID</th>
-          <th>Location</th>
+          <th>Warehouse</th>
+          <th>Subloc</th>
           <th>Weight (lbs)</th>
         </tr>
       </thead>
@@ -50,7 +52,8 @@
         {% for r in rolls %}
           <tr>
             <td>{{ r.roll_id }}</td>
-            <td>{{ r.location }}</td>
+            <td>{{ r.warehouse }}</td>
+            <td>{{ r.sublocation }}</td>
             <td>{{ r.weight_lbs }}</td>
           </tr>
         {% endfor %}
