@@ -19,15 +19,24 @@
     .success { background:#e8fff0; border:1px solid #2a8; }
     .error { background:#ffecec; border:1px solid #d55; }
     .muted { color:#666; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .left-actions { display:flex; gap:8px; align-items:center; }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width: 750px){ .grid2 { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <div class="wrap">
+
     <div class="topbar">
-      <h2 style="margin:0;">{{ title or "Roll Inventory" }}</h2>
+      <div class="left-actions">
+        {% if session.get("logged_in") %}
+          <a class="btn inline" href="javascript:history.back()">← Back</a>
+          <a class="btn inline" href="{{ url_for('home') }}">Home</a>
+        {% endif %}
+        <h2 style="margin:0;">{{ title or "Roll Inventory" }}</h2>
+      </div>
+
       {% if session.get("logged_in") %}
         <a class="btn inline" href="{{ url_for('logout') }}">Logout</a>
       {% endif %}
