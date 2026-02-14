@@ -26,7 +26,7 @@ app.secret_key = SECRET_KEY
 # ----------------------------
 # Warehouses / Sublocations
 # ----------------------------
-WAREHOUSES = ("WH1", "WH2", "CONSUMED", "USED")
+WAREHOUSES = ("WH1", "WH2", "USED")  # Removed CONSUMED
 
 WH1_SUBLOCS = ["02","03","04","05","06","07","08","09","10","12","16","17","18","19"]
 WH2_SUBLOCS = [str(i) for i in range(20, 31)]  # 20..30
@@ -67,7 +67,7 @@ def get_sublocs_for(warehouse: str):
 
 def validate_subloc(warehouse: str, subloc: str) -> bool:
     subloc = (subloc or "").strip()
-    if warehouse in ("CONSUMED", "USED"):
+    if warehouse == "USED":
         return subloc == ""
     return subloc in get_sublocs_for(warehouse)
 
@@ -81,7 +81,7 @@ def require_warehouse(w: str) -> bool:
 def init_db():
     with db_conn() as conn:
         with conn.cursor() as cur:
-            # ---- rolls table (create + migrate) ----
+            # rolls
             cur.execute("""
             CREATE TABLE IF NOT EXISTS rolls (
                 roll_id        TEXT PRIMARY KEY,
@@ -93,14 +93,14 @@ def init_db():
             );
             """)
 
-            # Add missing columns (if table existed with old schema)
+            # migrate missing columns
             cur.execute("ALTER TABLE rolls ADD COLUMN IF NOT EXISTS paper_type TEXT;")
             cur.execute("ALTER TABLE rolls ADD COLUMN IF NOT EXISTS weight_lbs INTEGER;")
             cur.execute("ALTER TABLE rolls ADD COLUMN IF NOT EXISTS warehouse TEXT;")
             cur.execute("ALTER TABLE rolls ADD COLUMN IF NOT EXISTS sublocation TEXT NOT NULL DEFAULT '';")
             cur.execute("ALTER TABLE rolls ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();")
 
-            # Try best-effort copy from old column names if they exist
+            # best-effort copy from old columns
             cur.execute("""
             DO $$
             BEGIN
@@ -120,7 +120,7 @@ def init_db():
             END $$;
             """)
 
-            # Fill defaults for old rows
+            # defaults
             cur.execute("""
             UPDATE rolls
             SET warehouse = COALESCE(NULLIF(warehouse,''), 'WH1')
@@ -137,7 +137,14 @@ def init_db():
             WHERE weight_lbs IS NULL;
             """)
 
-            # Try set NOT NULL (ignore if old weird rows prevent)
+            # Fix any legacy CONSUMED -> USED (since we removed consumed)
+            cur.execute("""
+            UPDATE rolls
+            SET warehouse='USED', sublocation=''
+            WHERE warehouse='CONSUMED';
+            """)
+
+            # NOT NULL best-effort
             cur.execute("""
             DO $$
             BEGIN
@@ -155,19 +162,19 @@ def init_db():
             END $$;
             """)
 
-            # Add constraint for rolls
+            # rolls warehouse constraint (only WH1/WH2/USED)
             cur.execute("""
             DO $$
             BEGIN
               IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='rolls_wh_check') THEN
                 ALTER TABLE rolls
                 ADD CONSTRAINT rolls_wh_check
-                CHECK (warehouse IN ('WH1','WH2','CONSUMED','USED'));
+                CHECK (warehouse IN ('WH1','WH2','USED'));
               END IF;
             END $$;
             """)
 
-            # ---- movements table (drop & recreate if old schema) ----
+            # movements (history)
             cur.execute("""
             SELECT EXISTS (
               SELECT 1 FROM information_schema.tables
@@ -177,7 +184,6 @@ def init_db():
             exists_mov = cur.fetchone()["exists"]
 
             if exists_mov:
-                # If old schema doesn't have from_wh, drop it (history only)
                 cur.execute("""
                 SELECT EXISTS (
                   SELECT 1 FROM information_schema.columns
@@ -211,7 +217,7 @@ def init_db():
                 );
                 """)
 
-            # Add constraint for movements (safe now)
+            # movements constraint (no CONSUMED)
             cur.execute("""
             DO $$
             BEGIN
@@ -219,8 +225,8 @@ def init_db():
                 ALTER TABLE movements
                 ADD CONSTRAINT mov_wh_check
                 CHECK (
-                  from_wh IN ('WH1','WH2','CONSUMED','USED')
-                  AND to_wh IN ('WH1','WH2','CONSUMED','USED')
+                  from_wh IN ('WH1','WH2','USED')
+                  AND to_wh IN ('WH1','WH2','USED')
                 );
               END IF;
             END $$;
@@ -408,47 +414,8 @@ def transfer_post(from_wh: str, to_wh: str):
 
 
 # ----------------------------
-# Consume / Remove / Batch / Restore / Inventory / Search
-# (same behavior as before)
+# Remove (scan -> USED)
 # ----------------------------
-@app.get("/consume")
-@login_required
-def consume_form():
-    return render_template("transfer.html", from_wh="WH1/WH2", to_wh="CONSUMED", dest_sublocs=[], consume_mode=True)
-
-@app.post("/consume")
-@login_required
-def consume_post():
-    roll_id = normalize_code(request.form.get("roll_id"))
-    if not roll_id:
-        flash("RollID is required.", "error")
-        return redirect(url_for("consume_form"))
-    _move_to_consumed(roll_id)
-    return redirect(url_for("consume_form"))
-
-def _move_to_consumed(roll_id: str):
-    with db_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT roll_id, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
-            roll = cur.fetchone()
-            if not roll:
-                flash(f"ERROR: RollID not found: {roll_id}", "error")
-                return
-            if roll["warehouse"] in ("CONSUMED", "USED"):
-                flash(f"ERROR: {roll_id} is already {roll['warehouse']}.", "error")
-                return
-            from_wh = roll["warehouse"]
-            from_subloc = roll["sublocation"]
-            cur.execute("UPDATE rolls SET warehouse='CONSUMED', sublocation='' WHERE roll_id=%s", (roll_id,))
-            cur.execute(
-                """INSERT INTO movements (ts_utc, roll_id, from_wh, to_wh, from_subloc, to_subloc)
-                   VALUES (%s,%s,%s,'CONSUMED',%s,'')""",
-                (now_utc(), roll_id, from_wh, from_subloc),
-            )
-        conn.commit()
-    flash(f"Consumed {roll_id}: moved to CONSUMED.", "success")
-
-
 @app.get("/remove")
 @login_required
 def remove_form():
@@ -487,6 +454,7 @@ def _move_to_used(roll_id: str):
     flash(f"Moved {roll_id} to USED.", "success")
 
 
+# Batch remove
 @app.get("/remove-batch")
 @login_required
 def remove_batch_form():
@@ -530,12 +498,7 @@ def remove_batch_post():
                            results_success=success, results_errors=errors)
 
 
-@app.post("/consume-roll/<roll_id>")
-@login_required
-def consume_roll_pc(roll_id: str):
-    _move_to_consumed(normalize_code(roll_id))
-    return redirect(request.referrer or url_for("home"))
-
+# PC quick buttons (from inventory)
 @app.post("/remove-roll/<roll_id>")
 @login_required
 def remove_roll_pc(roll_id: str):
@@ -543,9 +506,12 @@ def remove_roll_pc(roll_id: str):
     return redirect(request.referrer or url_for("home"))
 
 
-@app.get("/restore/<roll_id>")
+# ----------------------------
+# Edit roll (Move/Edit from PC)
+# ----------------------------
+@app.get("/edit/<roll_id>")
 @login_required
-def restore_form(roll_id: str):
+def edit_roll_form(roll_id: str):
     roll_id = normalize_code(roll_id)
     with db_conn() as conn:
         with conn.cursor() as cur:
@@ -554,52 +520,58 @@ def restore_form(roll_id: str):
     if not roll:
         flash(f"ERROR: RollID not found: {roll_id}", "error")
         return redirect(url_for("home"))
-    if roll["warehouse"] not in ("USED", "CONSUMED"):
-        flash(f"ERROR: {roll_id} is not in USED/CONSUMED.", "error")
-        return redirect(url_for("inventory", warehouse=roll["warehouse"]))
-    return render_template("restore.html", roll=roll, wh1_sublocs=WH1_SUBLOCS, wh2_sublocs=WH2_SUBLOCS)
+    return render_template("edit.html", roll=roll, warehouses=WAREHOUSES, wh1_sublocs=WH1_SUBLOCS, wh2_sublocs=WH2_SUBLOCS)
 
-@app.post("/restore/<roll_id>")
+@app.post("/edit/<roll_id>")
 @login_required
-def restore_post(roll_id: str):
+def edit_roll_post(roll_id: str):
     roll_id = normalize_code(roll_id)
-    target_wh = (request.form.get("warehouse") or "").strip().upper()
-    target_subloc = (request.form.get("sublocation") or "").strip()
+    new_paper = normalize_paper(request.form.get("paper_type"))
+    new_weight_raw = request.form.get("weight_lbs")
+    new_wh = (request.form.get("warehouse") or "").strip().upper()
+    new_subloc = (request.form.get("sublocation") or "").strip()
 
-    if target_wh not in ("WH1", "WH2"):
-        flash("Restore target must be WH1 or WH2.", "error")
-        return redirect(url_for("restore_form", roll_id=roll_id))
-    if not validate_subloc(target_wh, target_subloc):
-        flash("Invalid sublocation for target warehouse.", "error")
-        return redirect(url_for("restore_form", roll_id=roll_id))
+    if not new_paper or not new_weight_raw or not new_wh:
+        flash("PaperType, Weight, and Warehouse are required.", "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
+    if new_wh not in WAREHOUSES:
+        flash("Invalid warehouse.", "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
+    if not validate_subloc(new_wh, new_subloc):
+        flash("Invalid sublocation for selected warehouse.", "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
+    try:
+        new_weight = parse_weight_int(new_weight_raw)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
 
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT roll_id, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
-            roll = cur.fetchone()
-            if not roll:
+            old = cur.fetchone()
+            if not old:
                 flash(f"ERROR: RollID not found: {roll_id}", "error")
                 return redirect(url_for("home"))
-            if roll["warehouse"] not in ("USED", "CONSUMED"):
-                flash(f"ERROR: {roll_id} is not in USED/CONSUMED.", "error")
-                return redirect(url_for("inventory", warehouse=roll["warehouse"]))
 
-            from_wh = roll["warehouse"]
-            from_subloc = roll["sublocation"]
+            cur.execute("""UPDATE rolls SET paper_type=%s, weight_lbs=%s, warehouse=%s, sublocation=%s WHERE roll_id=%s""",
+                        (new_paper, new_weight, new_wh, new_subloc, roll_id))
 
-            cur.execute("UPDATE rolls SET warehouse=%s, sublocation=%s WHERE roll_id=%s",
-                        (target_wh, target_subloc, roll_id))
-            cur.execute(
-                """INSERT INTO movements (ts_utc, roll_id, from_wh, to_wh, from_subloc, to_subloc)
-                   VALUES (%s,%s,%s,%s,%s,%s)""",
-                (now_utc(), roll_id, from_wh, target_wh, from_subloc, target_subloc),
-            )
+            if old["warehouse"] != new_wh or old["sublocation"] != new_subloc:
+                cur.execute(
+                    """INSERT INTO movements (ts_utc, roll_id, from_wh, to_wh, from_subloc, to_subloc)
+                       VALUES (%s,%s,%s,%s,%s,%s)""",
+                    (now_utc(), roll_id, old["warehouse"], new_wh, old["sublocation"], new_subloc),
+                )
         conn.commit()
 
-    flash(f"Restored {roll_id} → {target_wh} ({target_subloc}).", "success")
-    return redirect(url_for("inventory", warehouse=target_wh))
+    flash(f"Updated {roll_id}.", "success")
+    return redirect(url_for("edit_roll_form", roll_id=roll_id))
 
 
+# ----------------------------
+# Inventory
+# ----------------------------
 @app.get("/inventory/<warehouse>")
 @login_required
 def inventory(warehouse: str):
@@ -624,6 +596,9 @@ def inventory(warehouse: str):
     return render_template("inventory.html", warehouse=warehouse, rows=rows, totals=totals)
 
 
+# ----------------------------
+# Search by paper type
+# ----------------------------
 @app.get("/search")
 @login_required
 def search():
@@ -655,7 +630,6 @@ def search():
                            COALESCE(SUM(weight_lbs),0) AS total_weight,
                            SUM(CASE WHEN warehouse='WH1' THEN 1 ELSE 0 END) AS wh1_cnt,
                            SUM(CASE WHEN warehouse='WH2' THEN 1 ELSE 0 END) AS wh2_cnt,
-                           SUM(CASE WHEN warehouse='CONSUMED' THEN 1 ELSE 0 END) AS consumed_cnt,
                            SUM(CASE WHEN warehouse='USED' THEN 1 ELSE 0 END) AS used_cnt
                     FROM rolls WHERE paper_type=%s
                 """, (selected_norm,))
@@ -667,7 +641,3 @@ def search():
 @app.get("/health")
 def health():
     return {"ok": True}
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
