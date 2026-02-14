@@ -20,10 +20,7 @@
   </select>
 
   <label>Sublocation (required for WH1/WH2, empty for CONSUMED/USED)</label>
-
-  <select name="sublocation" id="sublocation">
-    <!-- populated by JS -->
-  </select>
+  <select name="sublocation" id="sublocation"></select>
 
   <button class="btn" type="submit">Save Changes</button>
 </form>
@@ -37,23 +34,8 @@
   const whEl = document.getElementById("warehouse");
   const subEl = document.getElementById("sublocation");
 
-  function fillSublocs(wh) {
-    subEl.innerHTML = "";
-    if (wh === "WH1") {
-      addOptions(wh1, currentSub);
-    } else if (wh === "WH2") {
-      addOptions(wh2, currentSub);
-    } else {
-      // CONSUMED / USED => empty only
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "(none)";
-      subEl.appendChild(opt);
-      subEl.value = "";
-    }
-  }
-
   function addOptions(list, selected) {
+    subEl.innerHTML = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = "Select sublocation";
@@ -67,16 +49,23 @@
       subEl.appendChild(opt);
     });
 
-    // If current subloc isn't in list, default to placeholder
     if (!list.includes(selected)) subEl.value = "";
   }
 
-  whEl.addEventListener("change", () => {
-    // when user switches WH, reset selection
-    fillSublocs(whEl.value);
-  });
+  function fillSublocs(wh) {
+    if (wh === "WH1") addOptions(wh1, currentSub);
+    else if (wh === "WH2") addOptions(wh2, currentSub);
+    else {
+      subEl.innerHTML = "";
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "(none)";
+      subEl.appendChild(opt);
+      subEl.value = "";
+    }
+  }
 
-  // initial
+  whEl.addEventListener("change", () => fillSublocs(whEl.value));
   fillSublocs(currentWH);
 </script>
 {% endblock %}
