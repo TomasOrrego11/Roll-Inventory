@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% set title = "Transfer " ~ from_loc ~ " → " ~ to_loc %}
+{% block content %}
+<form method="post" autocomplete="off">
+  <label>RollID (scan barcode)</label>
+  <input name="roll_id" id="roll_id" placeholder="Scan RollID" required autofocus>
+
+  <button class="btn" type="submit">Transfer {{ from_loc }} → {{ to_loc }}</button>
+  <a class="btn" href="{{ url_for('home') }}">Back</a>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const el = document.getElementById("roll_id");
+    if (el) el.focus();
+  });
+</script>
+{% endblock %}
