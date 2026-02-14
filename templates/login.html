@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% set title = "Login" %}
+{% block content %}
+<form method="post" autocomplete="off">
+  <label>Username</label>
+  <input name="username" autofocus>
+
+  <label>Password</label>
+  <input name="password" type="password">
+
+  <button class="btn" type="submit">Login</button>
+</form>
+<p class="muted">Tip: set APP_USERNAME and APP_PASSWORD in Render Environment Variables.</p>
+{% endblock %}
