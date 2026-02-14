@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title or "Roll Inventory" }}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
+    .wrap { max-width: 700px; }
+    .btn { display:block; padding:14px 16px; margin:10px 0; border:1px solid #111; border-radius:12px; text-decoration:none; }
+    .btn.inline { display:inline-block; margin-right:10px; }
+    input { width:100%; padding:14px; font-size:18px; }
+    label { display:block; margin:10px 0 6px; font-weight:600; }
+    table { border-collapse: collapse; width:100%; margin-top: 10px; }
+    th, td { border-bottom:1px solid #ddd; padding:10px; text-align:left; }
+    .flash { padding:12px; border-radius:10px; margin:10px 0; }
+    .success { background:#e8fff0; border:1px solid #2a8; }
+    .error { background:#ffecec; border:1px solid #d55; }
+    .muted { color:#666; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h2 style="margin:0;">{{ title or "Roll Inventory" }}</h2>
+      {% if session.get("logged_in") %}
+        <a class="btn inline" href="{{ url_for('logout') }}">Logout</a>
+      {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
