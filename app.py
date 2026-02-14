@@ -7,9 +7,12 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
+# ----------------------------
+# Config (Render Env Vars)
+# ----------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 APP_USERNAME = os.getenv("APP_USERNAME", "admin")
-APP_PASSWORD = os.getenv("APP_PASSWORD")
+APP_PASSWORD = os.getenv("APP_PASSWORD")  # required
 SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_ME")
 
 if not DATABASE_URL:
@@ -20,17 +23,24 @@ if not APP_PASSWORD:
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+# ----------------------------
+# Warehouses / Sublocations
+# ----------------------------
 WAREHOUSES = ("WH1", "WH2", "CONSUMED", "USED")
+
 WH1_SUBLOCS = ["02","03","04","05","06","07","08","09","10","12","16","17","18","19"]
 WH2_SUBLOCS = [str(i) for i in range(20, 31)]  # 20..30
 
 
+# ----------------------------
+# Helpers
+# ----------------------------
 def now_utc():
     return datetime.now(timezone.utc)
 
 def normalize_code(s: str) -> str:
     s = (s or "").strip().upper()
-    s = re.sub(r"\s+", "", s)
+    s = re.sub(r"\s+", "", s)  # remove whitespace
     return s
 
 def normalize_paper(s: str) -> str:
@@ -58,13 +68,16 @@ def get_sublocs_for(warehouse: str):
 def validate_subloc(warehouse: str, subloc: str) -> bool:
     subloc = (subloc or "").strip()
     if warehouse in ("CONSUMED", "USED"):
-        return subloc == ""
+        return subloc == ""  # must be empty
     return subloc in get_sublocs_for(warehouse)
 
 def require_warehouse(w: str) -> bool:
     return w in WAREHOUSES
 
 
+# ----------------------------
+# DB init + constraints (safe)
+# ----------------------------
 def init_db():
     with db_conn() as conn:
         with conn.cursor() as cur:
@@ -89,6 +102,8 @@ def init_db():
                 to_subloc      TEXT NOT NULL DEFAULT ''
             );
             """)
+
+            # Add constraints if not exist (Render-friendly)
             cur.execute("""
             DO $$
             BEGIN
@@ -121,6 +136,9 @@ def _ensure_db():
         app._db_inited = True
 
 
+# ----------------------------
+# Auth
+# ----------------------------
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -129,10 +147,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-
-# ----------------------------
-# Auth
-# ----------------------------
 @app.get("/login")
 def login():
     return render_template("login.html")
@@ -172,11 +186,13 @@ def add_form(warehouse: str):
     if warehouse not in ("WH1", "WH2"):
         return redirect(url_for("home"))
 
-    sublocs = get_sublocs_for(warehouse)
-    sticky_key = f"sticky_add_{warehouse}"
-    sticky = session.get(sticky_key, "")
-
-    return render_template("add.html", warehouse=warehouse, sublocs=sublocs, sticky_subloc=sticky)
+    sticky = session.get(f"sticky_add_{warehouse}", "")
+    return render_template(
+        "add.html",
+        warehouse=warehouse,
+        sublocs=get_sublocs_for(warehouse),
+        sticky_subloc=sticky
+    )
 
 @app.post("/add/<warehouse>")
 @login_required
@@ -221,15 +237,13 @@ def add_post(warehouse: str):
             )
         conn.commit()
 
-    # Sticky save
     session[f"sticky_add_{warehouse}"] = subloc
-
     flash(f"Added {roll_id} to {warehouse} (Subloc {subloc}).", "success")
     return redirect(url_for("add_form", warehouse=warehouse))
 
 
 # ----------------------------
-# Transfer (Sticky destination sublocation)
+# Transfer WH1 <-> WH2 (Sticky dest sublocation)
 # ----------------------------
 @app.get("/transfer/<from_wh>/<to_wh>")
 @login_required
@@ -239,14 +253,12 @@ def transfer_form(from_wh: str, to_wh: str):
     if (from_wh, to_wh) not in (("WH1","WH2"), ("WH2","WH1")):
         return redirect(url_for("home"))
 
-    dest_sublocs = get_sublocs_for(to_wh)
     sticky = session.get(f"sticky_transfer_to_{to_wh}", "")
-
     return render_template(
         "transfer.html",
         from_wh=from_wh,
         to_wh=to_wh,
-        dest_sublocs=dest_sublocs,
+        dest_sublocs=get_sublocs_for(to_wh),
         sticky_dest_subloc=sticky
     )
 
@@ -274,7 +286,6 @@ def transfer_post(from_wh: str, to_wh: str):
         with conn.cursor() as cur:
             cur.execute("SELECT roll_id, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
             roll = cur.fetchone()
-
             if not roll:
                 flash(f"ERROR: RollID not found: {roll_id}", "error")
                 return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
@@ -296,15 +307,13 @@ def transfer_post(from_wh: str, to_wh: str):
             )
         conn.commit()
 
-    # Sticky save
     session[f"sticky_transfer_to_{to_wh}"] = dest_subloc
-
     flash(f"Transferred {roll_id}: {from_wh} → {to_wh} (to {dest_subloc}).", "success")
     return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
 
 
 # ----------------------------
-# Consume → CONSUMED
+# Consume → CONSUMED (scan page)
 # ----------------------------
 @app.get("/consume")
 @login_required
@@ -319,18 +328,20 @@ def consume_post():
         flash("RollID is required.", "error")
         return redirect(url_for("consume_form"))
 
+    _move_to_consumed(roll_id)
+    return redirect(url_for("consume_form"))
+
+def _move_to_consumed(roll_id: str):
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT roll_id, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
             roll = cur.fetchone()
-
             if not roll:
                 flash(f"ERROR: RollID not found: {roll_id}", "error")
-                return redirect(url_for("consume_form"))
-
+                return
             if roll["warehouse"] in ("CONSUMED", "USED"):
                 flash(f"ERROR: {roll_id} is already {roll['warehouse']}.", "error")
-                return redirect(url_for("consume_form"))
+                return
 
             from_wh = roll["warehouse"]
             from_subloc = roll["sublocation"]
@@ -344,13 +355,11 @@ def consume_post():
                 (now_utc(), roll_id, from_wh, from_subloc),
             )
         conn.commit()
-
     flash(f"Consumed {roll_id}: moved to CONSUMED.", "success")
-    return redirect(url_for("consume_form"))
 
 
 # ----------------------------
-# Remove → USED (single + batch)
+# Remove → USED (scan page + batch)
 # ----------------------------
 @app.get("/remove")
 @login_required
@@ -365,10 +374,10 @@ def remove_post():
         flash("RollID is required.", "error")
         return redirect(url_for("remove_form"))
 
-    _move_to_used_single(roll_id)
+    _move_to_used(roll_id)
     return redirect(url_for("remove_form"))
 
-def _move_to_used_single(roll_id: str):
+def _move_to_used(roll_id: str):
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT roll_id, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
@@ -437,18 +446,33 @@ def remove_batch_post():
                 success.append(rid)
         conn.commit()
 
-    flash(f"Batch complete. Success: {len(success)} | Errors: {len(errors)}", "success" if len(errors)==0 else "error")
+    flash(f"Batch complete. Success: {len(success)} | Errors: {len(errors)}", "success" if len(errors) == 0 else "error")
     return render_template("batch.html", title="Batch Remove → USED", results_success=success, results_errors=errors)
 
 
 # ----------------------------
-# Edit/Move from PC
+# PC ONE-CLICK Actions (POST)
 # ----------------------------
-@app.get("/edit/<roll_id>")
+@app.post("/consume-roll/<roll_id>")
 @login_required
-def edit_roll_form(roll_id: str):
-    roll_id = normalize_code(roll_id)
+def consume_roll_pc(roll_id: str):
+    _move_to_consumed(normalize_code(roll_id))
+    return redirect(request.referrer or url_for("home"))
 
+@app.post("/remove-roll/<roll_id>")
+@login_required
+def remove_roll_pc(roll_id: str):
+    _move_to_used(normalize_code(roll_id))
+    return redirect(request.referrer or url_for("home"))
+
+
+# ----------------------------
+# Restore (Undo) from USED/CONSUMED → WH1/WH2 with sublocation
+# ----------------------------
+@app.get("/restore/<roll_id>")
+@login_required
+def restore_form(roll_id: str):
+    roll_id = normalize_code(roll_id)
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT roll_id, paper_type, weight_lbs, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
@@ -458,7 +482,80 @@ def edit_roll_form(roll_id: str):
         flash(f"ERROR: RollID not found: {roll_id}", "error")
         return redirect(url_for("home"))
 
-    # subloc options depend on chosen warehouse; we send both lists and let template swap
+    if roll["warehouse"] not in ("USED", "CONSUMED"):
+        flash(f"ERROR: {roll_id} is not in USED/CONSUMED.", "error")
+        return redirect(url_for("inventory", warehouse=roll["warehouse"]))
+
+    return render_template(
+        "restore.html",
+        roll=roll,
+        wh1_sublocs=WH1_SUBLOCS,
+        wh2_sublocs=WH2_SUBLOCS
+    )
+
+@app.post("/restore/<roll_id>")
+@login_required
+def restore_post(roll_id: str):
+    roll_id = normalize_code(roll_id)
+    target_wh = (request.form.get("warehouse") or "").strip().upper()
+    target_subloc = (request.form.get("sublocation") or "").strip()
+
+    if target_wh not in ("WH1", "WH2"):
+        flash("Restore target must be WH1 or WH2.", "error")
+        return redirect(url_for("restore_form", roll_id=roll_id))
+
+    if not validate_subloc(target_wh, target_subloc):
+        flash("Invalid sublocation for target warehouse.", "error")
+        return redirect(url_for("restore_form", roll_id=roll_id))
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT roll_id, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
+            roll = cur.fetchone()
+            if not roll:
+                flash(f"ERROR: RollID not found: {roll_id}", "error")
+                return redirect(url_for("home"))
+
+            if roll["warehouse"] not in ("USED", "CONSUMED"):
+                flash(f"ERROR: {roll_id} is not in USED/CONSUMED.", "error")
+                return redirect(url_for("inventory", warehouse=roll["warehouse"]))
+
+            from_wh = roll["warehouse"]
+            from_subloc = roll["sublocation"]
+
+            cur.execute(
+                "UPDATE rolls SET warehouse=%s, sublocation=%s WHERE roll_id=%s",
+                (target_wh, target_subloc, roll_id),
+            )
+            cur.execute(
+                """
+                INSERT INTO movements (ts_utc, roll_id, from_wh, to_wh, from_subloc, to_subloc)
+                VALUES (%s,%s,%s,%s,%s,%s)
+                """,
+                (now_utc(), roll_id, from_wh, target_wh, from_subloc, target_subloc),
+            )
+        conn.commit()
+
+    flash(f"Restored {roll_id} → {target_wh} ({target_subloc}).", "success")
+    return redirect(url_for("inventory", warehouse=target_wh))
+
+
+# ----------------------------
+# Edit/Move from PC (full edit)
+# ----------------------------
+@app.get("/edit/<roll_id>")
+@login_required
+def edit_roll_form(roll_id: str):
+    roll_id = normalize_code(roll_id)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT roll_id, paper_type, weight_lbs, warehouse, sublocation FROM rolls WHERE roll_id=%s", (roll_id,))
+            roll = cur.fetchone()
+
+    if not roll:
+        flash(f"ERROR: RollID not found: {roll_id}", "error")
+        return redirect(url_for("home"))
+
     return render_template(
         "edit.html",
         roll=roll,
@@ -503,7 +600,6 @@ def edit_roll_post(roll_id: str):
                 flash(f"ERROR: RollID not found: {roll_id}", "error")
                 return redirect(url_for("home"))
 
-            # update roll
             cur.execute(
                 """
                 UPDATE rolls
@@ -513,7 +609,6 @@ def edit_roll_post(roll_id: str):
                 (new_paper, new_weight, new_wh, new_subloc, roll_id),
             )
 
-            # If warehouse or sublocation changed, record movement
             if old["warehouse"] != new_wh or old["sublocation"] != new_subloc:
                 cur.execute(
                     """
@@ -529,7 +624,7 @@ def edit_roll_post(roll_id: str):
 
 
 # ----------------------------
-# Inventory + Search
+# Inventory views
 # ----------------------------
 @app.get("/inventory/<warehouse>")
 @login_required
@@ -559,6 +654,10 @@ def inventory(warehouse: str):
 
     return render_template("inventory.html", warehouse=warehouse, rows=rows, totals=totals)
 
+
+# ----------------------------
+# Search by PaperType
+# ----------------------------
 @app.get("/search")
 @login_required
 def search():
@@ -613,6 +712,7 @@ def search():
                 totals = cur.fetchone()
 
     return render_template("search.html", q=q, matches=matches, selected=selected_norm, rolls=rolls, totals=totals)
+
 
 @app.get("/health")
 def health():
