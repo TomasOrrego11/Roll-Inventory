@@ -6,11 +6,12 @@
   <title>{{ title or "Roll Inventory" }}</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
-    .wrap { max-width: 700px; }
+    .wrap { max-width: 750px; }
     .btn { display:block; padding:14px 16px; margin:10px 0; border:1px solid #111; border-radius:12px; text-decoration:none; }
     .btn.inline { display:inline-block; margin-right:10px; }
-    input { width:100%; padding:14px; font-size:18px; }
+    input, select, textarea { width:100%; padding:14px; font-size:18px; }
     label { display:block; margin:10px 0 6px; font-weight:600; }
+    textarea { height: 220px; }
     table { border-collapse: collapse; width:100%; margin-top: 10px; }
     th, td { border-bottom:1px solid #ddd; padding:10px; text-align:left; }
     .flash { padding:12px; border-radius:10px; margin:10px 0; }
@@ -18,6 +19,8 @@
     .error { background:#ffecec; border:1px solid #d55; }
     .muted { color:#666; }
     .topbar { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 650px){ .grid2 { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
