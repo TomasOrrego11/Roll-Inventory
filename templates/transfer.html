@@ -15,11 +15,11 @@
     {% set title = "Transfer " ~ from_wh ~ " → " ~ to_wh %}
     <h3>Transfer {{ from_wh }} → {{ to_wh }}</h3>
 
-    <label>Destination Sublocation (choose once, then scan)</label>
+    <label>Destination Sublocation (sticky)</label>
     <select name="dest_sublocation" required>
-      <option value="" disabled selected>Select destination sublocation</option>
+      <option value="" disabled {% if not sticky_dest_subloc %}selected{% endif %}>Select destination sublocation</option>
       {% for s in dest_sublocs %}
-        <option value="{{ s }}">{{ s }}</option>
+        <option value="{{ s }}" {% if sticky_dest_subloc == s %}selected{% endif %}>{{ s }}</option>
       {% endfor %}
     </select>
   {% endif %}
