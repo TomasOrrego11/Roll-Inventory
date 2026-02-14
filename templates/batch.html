@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set title = title %}
+{% block content %}
+<a class="btn inline" href="{{ url_for('home') }}">Back</a>
+
+<p class="muted">
+Scan many RollIDs into the box below (ONE per line). Then press OK.
+Your scanner sends ENTER, so each scan becomes a new line automatically.
+</p>
+
+<form method="post" autocomplete="off">
+  <label>RollIDs (one per line)</label>
+  <textarea name="roll_ids" placeholder="Scan or paste RollIDs here..."></textarea>
+
+  <button class="btn" type="submit">OK - Batch Remove → USED</button>
+</form>
+
+{% if results_success %}
+  <h3>Success</h3>
+  <ul>
+    {% for r in results_success %}
+      <li>{{ r }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if results_errors %}
+  <h3>Errors</h3>
+  <ul>
+    {% for e in results_errors %}
+      <li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}
