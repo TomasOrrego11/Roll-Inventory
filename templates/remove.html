@@ -1,0 +1,21 @@
+<!-- =========================
+templates/remove.html  (CREAR ESTE ARCHIVO)
+========================= -->
+{% extends "base.html" %}
+{% set title = "Remove Roll → USED" %}
+{% block content %}
+
+<form method="POST" action="{{ url_for('remove_form') }}">
+  <label>Scan / Enter Roll ID</label>
+  <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
+  <button class="btn" type="submit">Move to USED</button>
+</form>
+
+<script>
+  window.addEventListener("load", () => {
+    const el = document.getElementById("roll_id");
+    if (el) el.focus();
+  });
+</script>
+
+{% endblock %}
