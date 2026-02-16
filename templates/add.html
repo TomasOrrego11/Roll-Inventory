@@ -1,32 +1,60 @@
 {% extends "base.html" %}
-{% set title = "Add to " ~ warehouse %}
-{% block content %}
-<form method="post" autocomplete="off">
-  <label>PaperType (required)</label>
-  <input name="paper_type" placeholder="e.g., 7POPGLSCVRFSC38" required>
+{% set title = "Add Roll - " ~ warehouse %}
 
-  <label>Sublocation (sticky)</label>
-  <select name="sublocation" required>
-    <option value="" disabled {% if not sticky_subloc %}selected{% endif %}>Select sublocation</option>
-    {% for s in sublocs %}
-      <option value="{{ s }}" {% if sticky_subloc == s %}selected{% endif %}>{{ s }}</option>
+{% block content %}
+
+<form method="POST" action="{{ url_for('add_form', warehouse=warehouse) }}">
+
+  <label>Location ({{ warehouse }})</label>
+  <select name="location" id="location" required>
+    {% for loc in locations %}
+      <option value="{{ loc }}">{{ loc }}</option>
     {% endfor %}
   </select>
 
-  <label>RollID (scan barcode)</label>
-  <input name="roll_id" id="roll_id" placeholder="Scan RollID" required autofocus>
+  <label>Paper Type</label>
+  <input type="text" name="paper_type" id="paper_type" required autocomplete="off">
 
-  <label>Weight (lbs, integer)</label>
-  <input name="weight_lbs" placeholder="e.g., 2945" inputmode="numeric" required>
+  <label>Roll ID</label>
+  <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
 
-  <button class="btn" type="submit">Add to {{ warehouse }}</button>
-  <a class="btn" href="{{ url_for('home') }}">Back</a>
+  <label>Weight</label>
+  <input type="number" name="weight" id="weight" required autocomplete="off" step="1" min="1">
+
+  <button class="btn" type="submit">Add Roll</button>
 </form>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const el = document.getElementById("roll_id");
-    if (el) el.focus();
+(function(){
+  const wh = "{{ warehouse }}";
+  const key = "sticky_location_" + wh;
+
+  const sel = document.getElementById("location");
+  const paper = document.getElementById("paper_type");
+  const roll = document.getElementById("roll_id");
+
+  // restore sticky location
+  const saved = localStorage.getItem(key);
+  if(saved && sel){
+    for(const opt of sel.options){
+      if(opt.value === saved){ sel.value = saved; break; }
+    }
+  }
+
+  // save sticky location whenever changed
+  if(sel){
+    sel.addEventListener("change", () => {
+      localStorage.setItem(key, sel.value);
+      setTimeout(() => roll?.focus(), 50);
+    });
+  }
+
+  // focus top field for scanning flow
+  window.addEventListener("load", () => {
+    if(paper) paper.focus();
   });
+
+})();
 </script>
+
 {% endblock %}
