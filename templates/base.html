@@ -5,76 +5,113 @@
 <title>{{ title or "Roll Inventory" }}</title>
 
 <style>
+
 body{
     margin:0;
     font-family:Arial, Helvetica, sans-serif;
-    background:#0f172a;
-    color:white;
+    background:#f4f6f9;
+    color:#1f2937;
 }
 
+/* CONTAINER */
 .wrap{
     max-width:1200px;
     margin:auto;
-    padding:20px;
+    padding:25px;
 }
 
+/* TOP BAR */
 .topbar{
     display:flex;
     justify-content:space-between;
     align-items:center;
+    background:white;
+    padding:15px 20px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
     margin-bottom:25px;
 }
 
+/* BUTTONS */
+.btn{
+    display:block;
+    background:#2563eb;
+    color:white;
+    text-decoration:none;
+    padding:16px;
+    margin:10px 0;
+    border-radius:10px;
+    text-align:center;
+    font-weight:bold;
+    transition:.2s;
+}
+
+.btn:hover{
+    background:#1d4ed8;
+    transform:translateY(-1px);
+}
+
+/* NAV */
 .nav{
     display:flex;
     gap:10px;
 }
 
-.btn{
-    display:block;
-    background:#1e293b;
-    padding:15px;
-    margin:10px 0;
-    text-decoration:none;
-    color:white;
-    border-radius:8px;
-    text-align:center;
-    font-weight:bold;
-}
-
-.btn:hover{
-    background:#334155;
-}
-
+/* GRID */
 .grid2{
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:20px;
 }
 
+/* FORMS */
 input, select{
     width:100%;
     padding:14px;
     font-size:18px;
     margin-bottom:15px;
-    border-radius:6px;
-    border:none;
+    border-radius:8px;
+    border:1px solid #d1d5db;
 }
 
 .flash{
-    background:#16a34a;
+    background:#dcfce7;
+    color:#166534;
     padding:12px;
+    border-radius:8px;
     margin-bottom:15px;
-    border-radius:6px;
 }
 
-/* FULL SCREEN SCANNER STYLE */
+/* ---------- SCANNER FULLSCREEN MODE ---------- */
+
+.scan-mode{
+    background:white;
+}
+
+.scan-mode .wrap{
+    max-width:100%;
+}
+
 .scan-mode input{
-    font-size:26px;
-    padding:22px;
+    font-size:34px;
+    padding:28px;
+    text-align:center;
 }
-</style>
 
+.scan-mode h2{
+    font-size:28px;
+}
+
+.fullscreen-btn{
+    background:#10b981;
+    margin-left:10px;
+}
+
+.fullscreen-btn:hover{
+    background:#059669;
+}
+
+</style>
 </head>
 
 <body>
@@ -86,6 +123,7 @@ input, select{
 
     <div class="nav">
         <a class="btn" href="{{ url_for('home') }}">Back</a>
+        <button class="btn fullscreen-btn" onclick="toggleFullscreen()">Scanner Mode</button>
         <a class="btn" href="{{ url_for('logout') }}">Logout</a>
     </div>
 </div>
@@ -103,20 +141,36 @@ input, select{
 </div>
 
 <script>
-/* AUTOFOCUS FIRST INPUT */
-window.onload = function(){
-    let firstInput = document.querySelector("input");
-    if(firstInput){
-        firstInput.focus();
-        firstInput.select();
+
+/* AUTOFOCUS ALWAYS TOP INPUT */
+function focusTop(){
+    let input=document.querySelector("input");
+    if(input){
+        input.focus();
+        input.select();
     }
-};
+}
+
+window.onload = focusTop;
+document.addEventListener("click",focusTop);
 
 /* SCAN SOUND */
-document.addEventListener("submit", function(){
-    let audio = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+document.addEventListener("submit",function(){
+    let audio=new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
     audio.play();
 });
+
+/* FULLSCREEN SCANNER */
+function toggleFullscreen(){
+    if(!document.fullscreenElement){
+        document.documentElement.requestFullscreen();
+        document.body.classList.add("scan-mode");
+    }else{
+        document.exitFullscreen();
+        document.body.classList.remove("scan-mode");
+    }
+}
+
 </script>
 
 </body>
