@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 {% set title = "Add Roll - " ~ warehouse %}
-
 {% block content %}
 
 <form method="POST" action="{{ url_for('add_form', warehouse=warehouse) }}">
 
-  <label>Location ({{ warehouse }})</label>
+  <label>Sub-Location ({{ warehouse }})</label>
   <select name="location" id="location" required>
-    <option value="" selected disabled>Select a location…</option>
+    <option value="" disabled selected>Select…</option>
     {% for loc in locations %}
       <option value="{{ loc }}">{{ loc }}</option>
     {% endfor %}
@@ -24,41 +23,5 @@
 
   <button class="btn primary" type="submit">Add Roll</button>
 </form>
-
-<script>
-(function(){
-  const wh = "{{ warehouse }}";
-  const key = "sticky_location_" + wh;
-
-  const sel  = document.getElementById("location");
-  const paper= document.getElementById("paper_type");
-  const roll = document.getElementById("roll_id");
-
-  // Restore sticky location (but still let user change it)
-  const saved = localStorage.getItem(key);
-  if(saved && sel){
-    for(const opt of sel.options){
-      if(opt.value === saved){
-        sel.value = saved;
-        break;
-      }
-    }
-  }
-
-  // Focus location first so you can select it
-  window.addEventListener("load", () => {
-    if(sel) sel.focus();
-  });
-
-  // Save sticky location + move focus to Paper Type
-  if(sel){
-    sel.addEventListener("change", () => {
-      localStorage.setItem(key, sel.value);
-      setTimeout(() => paper && paper.focus(), 80);
-    });
-  }
-
-})();
-</script>
 
 {% endblock %}
