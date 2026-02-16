@@ -7,6 +7,7 @@
 
   <label>Location ({{ warehouse }})</label>
   <select name="location" id="location" required>
+    <option value="" selected disabled>Select a location…</option>
     {% for loc in locations %}
       <option value="{{ loc }}">{{ loc }}</option>
     {% endfor %}
@@ -21,7 +22,7 @@
   <label>Weight</label>
   <input type="number" name="weight" id="weight" required autocomplete="off" step="1" min="1">
 
-  <button class="btn" type="submit">Add Roll</button>
+  <button class="btn primary" type="submit">Add Roll</button>
 </form>
 
 <script>
@@ -29,30 +30,33 @@
   const wh = "{{ warehouse }}";
   const key = "sticky_location_" + wh;
 
-  const sel = document.getElementById("location");
-  const paper = document.getElementById("paper_type");
+  const sel  = document.getElementById("location");
+  const paper= document.getElementById("paper_type");
   const roll = document.getElementById("roll_id");
 
-  // restore sticky location
+  // Restore sticky location (but still let user change it)
   const saved = localStorage.getItem(key);
   if(saved && sel){
     for(const opt of sel.options){
-      if(opt.value === saved){ sel.value = saved; break; }
+      if(opt.value === saved){
+        sel.value = saved;
+        break;
+      }
     }
   }
 
-  // save sticky location whenever changed
+  // Focus location first so you can select it
+  window.addEventListener("load", () => {
+    if(sel) sel.focus();
+  });
+
+  // Save sticky location + move focus to Paper Type
   if(sel){
     sel.addEventListener("change", () => {
       localStorage.setItem(key, sel.value);
-      setTimeout(() => roll?.focus(), 50);
+      setTimeout(() => paper && paper.focus(), 80);
     });
   }
-
-  // focus top field for scanning flow
-  window.addEventListener("load", () => {
-    if(paper) paper.focus();
-  });
 
 })();
 </script>
