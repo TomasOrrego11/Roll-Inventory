@@ -1,268 +1,54 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{ title or "Roll Inventory" }}</title>
+{% extends "base.html" %}
+{% set title = "Roll Inventory" %}
 
-<style>
-*{box-sizing:border-box}
+{% block content %}
 
-body{
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-  margin:0;
-  background:#f4f6f8;
-  transition:.25s;
-}
+<div class="grid2">
 
-/* ===== DARK MODE ===== */
-body.dark{
-  background:#121212;
-  color:#eee;
-}
+  <div>
+    <a class="btn" href="{{ url_for('add_form', warehouse='WH1') }}">
+      1) Add to Warehouse 1 (WH1)
+    </a>
 
-body.dark .btn,
-body.dark input,
-body.dark table{
-  background:#1e1e1e;
-  color:white;
-  border-color:#444;
-}
+    <a class="btn" href="{{ url_for('add_form', warehouse='WH2') }}">
+      2) Add to Warehouse 2 (WH2)
+    </a>
 
-.wrap{
-  width:100%;
-  max-width:1100px;
-  margin:auto;
-  padding:20px;
-}
+    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}">
+      3) Transfer WH1 → WH2
+    </a>
 
-.btn{
-  display:block;
-  padding:16px;
-  margin:10px 0;
-  border-radius:12px;
-  text-decoration:none;
-  background:white;
-  border:1px solid #ccc;
-  transition:.15s;
-  font-size:17px;
-}
-
-.btn:hover{
-  background:#111;
-  color:white;
-}
-
-.btn.inline{
-  display:inline-block;
-  margin:4px;
-}
-
-input,select,textarea{
-  width:100%;
-  padding:16px;
-  font-size:22px;
-  border-radius:10px;
-  border:1px solid #ccc;
-}
-
-/* SUCCESS FLASH */
-.flash.success{
-  background:#e8fff0;
-  border:1px solid #2a8;
-  animation:successFlash .6s;
-}
-
-.flash.error{
-  background:#ffecec;
-  border:1px solid #d55;
-}
-
-@keyframes successFlash{
-  0%{transform:scale(1.02)}
-  100%{transform:scale(1)}
-}
-
-.topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:15px;
-  flex-wrap:wrap;
-}
-
-.nav-buttons{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-
-.grid2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-
-.counter{
-  font-weight:600;
-  padding:8px 14px;
-  border-radius:10px;
-  background:#111;
-  color:white;
-}
-
-body.dark .counter{
-  background:#2a2a2a;
-}
-
-@media(max-width:750px){
-  .grid2{grid-template-columns:1fr}
-}
-</style>
-</head>
-
-<body>
-
-<div class="wrap">
-
-<div class="topbar">
-  <h2>{{ title or "Roll Inventory" }}</h2>
-
-  <div class="nav-buttons">
-
-    <!-- BACK -->
-    <button class="btn inline" onclick="history.back()">⬅ Back</button>
-
-    <!-- DARK MODE -->
-    <button class="btn inline" onclick="toggleDark()">🌙 Mode</button>
-
-    <!-- SCAN COUNTER -->
-    <div class="counter">
-      Scans: <span id="scanCount">0</span>
-    </div>
-
-    {% if session.get("logged_in") %}
-      <a class="btn inline" href="{{ url_for('logout') }}">Logout</a>
-    {% endif %}
+    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}">
+      4) Transfer WH2 → WH1
+    </a>
   </div>
+
+  <div>
+    <a class="btn" href="{{ url_for('remove_form') }}">
+      5) Remove Roll → USED
+    </a>
+
+    <a class="btn" href="{{ url_for('remove_batch_form') }}">
+      6) Batch Remove → USED
+    </a>
+  </div>
+
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="flash {{ category }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+<a class="btn" href="{{ url_for('inventory', warehouse='WH1') }}">
+View Inventory WH1
+</a>
 
-{% block content %}{% endblock %}
+<a class="btn" href="{{ url_for('inventory', warehouse='WH2') }}">
+View Inventory WH2
+</a>
 
-</div>
+<a class="btn" href="{{ url_for('inventory', warehouse='USED') }}">
+View Inventory USED
+</a>
 
-<!-- SOUNDS -->
-<audio id="successSound">
-<source src="https://www.soundjay.com/buttons/sounds/button-3.mp3">
-</audio>
+<a class="btn" href="{{ url_for('search') }}">
+Search by Paper Type
+</a>
 
-<audio id="errorSound">
-<source src="https://www.soundjay.com/buttons/sounds/button-10.mp3">
-</audio>
-
-<script>
-
-/* =====================
-AUTOFOCUS TOP INPUT
-===================== */
-function focusFirstInput(){
-  const el=document.querySelector(
-    "input:not([type=hidden]):not([readonly]), textarea, select"
-  );
-  if(el){
-    el.focus();
-    el.select?.();
-  }
-}
-
-window.addEventListener("load",focusFirstInput);
-
-
-/* =====================
-AUTO SUBMIT (SCANNER MODE)
-Scanner sends ENTER automatically
-===================== */
-document.addEventListener("keydown",function(e){
-
-  const active=document.activeElement;
-
-  if(e.key==="Enter" && active.tagName==="INPUT"){
-      const form=active.closest("form");
-      if(form){
-          e.preventDefault();
-          form.submit();
-      }
-  }
-});
-
-
-/* =====================
-SCAN COUNTER
-===================== */
-let scans=Number(localStorage.getItem("scans")||0);
-
-function updateCounter(){
-  document.getElementById("scanCount").textContent=scans;
-}
-updateCounter();
-
-
-/* =====================
-SUCCESS / ERROR SOUND
-===================== */
-window.addEventListener("load",()=>{
-
-  const success=document.querySelector(".flash.success");
-  const error=document.querySelector(".flash.error");
-
-  if(success){
-      scans++;
-      localStorage.setItem("scans",scans);
-      updateCounter();
-
-      document.getElementById("successSound")
-        .play().catch(()=>{});
-  }
-
-  if(error){
-      document.getElementById("errorSound")
-        .play().catch(()=>{});
-  }
-});
-
-
-/* =====================
-DARK MODE SAVE
-===================== */
-function toggleDark(){
-  document.body.classList.toggle("dark");
-  localStorage.setItem(
-    "darkMode",
-    document.body.classList.contains("dark")
-  );
-}
-
-if(localStorage.getItem("darkMode")==="true"){
-  document.body.classList.add("dark");
-}
-
-
-/* =====================
-REFOCUS AFTER NAVIGATION
-===================== */
-document.addEventListener("DOMContentLoaded",()=>{
-  setTimeout(focusFirstInput,120);
-});
-
-</script>
-
-</body>
-</html>
+{% endblock %}
