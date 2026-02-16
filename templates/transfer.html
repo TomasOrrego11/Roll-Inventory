@@ -1,47 +1,20 @@
 {% extends "base.html" %}
-{% set title = "Action" %}
+{% set title = "Transfer " ~ from_wh ~ " → " ~ to_wh %}
 {% block content %}
-<form method="post" autocomplete="off">
 
-  {% if consume_mode %}
-    {% set title = "Consume → CONSUMED" %}
-    <h3>Consume roll (move to CONSUMED)</h3>
+<form method="POST" action="{{ url_for('transfer_form', from_wh=from_wh, to_wh=to_wh) }}">
+  <label>Destination Sub-Location ({{ to_wh }})</label>
+  <select name="location" id="location" required>
+    <option value="" disabled selected>Select…</option>
+    {% for loc in locations %}
+      <option value="{{ loc }}">{{ loc }}</option>
+    {% endfor %}
+  </select>
 
-  {% elif remove_mode %}
-    {% set title = "Remove → USED" %}
-    <h3>Remove roll (move to USED)</h3>
+  <label>Roll ID (scan)</label>
+  <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
 
-  {% else %}
-    {% set title = "Transfer " ~ from_wh ~ " → " ~ to_wh %}
-    <h3>Transfer {{ from_wh }} → {{ to_wh }}</h3>
-
-    <label>Destination Sublocation (sticky)</label>
-    <select name="dest_sublocation" required>
-      <option value="" disabled {% if not sticky_dest_subloc %}selected{% endif %}>Select destination sublocation</option>
-      {% for s in dest_sublocs %}
-        <option value="{{ s }}" {% if sticky_dest_subloc == s %}selected{% endif %}>{{ s }}</option>
-      {% endfor %}
-    </select>
-  {% endif %}
-
-  <label>RollID (scan barcode)</label>
-  <input name="roll_id" id="roll_id" placeholder="Scan RollID" required autofocus>
-
-  {% if consume_mode %}
-    <button class="btn" type="submit">Consume → CONSUMED</button>
-  {% elif remove_mode %}
-    <button class="btn" type="submit">Remove → USED</button>
-  {% else %}
-    <button class="btn" type="submit">Transfer {{ from_wh }} → {{ to_wh }}</button>
-  {% endif %}
-
-  <a class="btn" href="{{ url_for('home') }}">Back</a>
+  <button class="btn primary" type="submit">Transfer</button>
 </form>
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const el = document.getElementById("roll_id");
-    if (el) el.focus();
-  });
-</script>
 {% endblock %}
