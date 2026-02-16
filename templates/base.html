@@ -12,105 +12,57 @@ body{
   color:#1f2937;
 }
 
-.wrap{
-  max-width:1200px;
-  margin:auto;
-  padding:25px;
-}
+.wrap{ max-width:1200px; margin:auto; padding:25px; }
 
 .topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:white;
-  padding:15px 20px;
-  border-radius:10px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.08);
-  margin-bottom:25px;
+  display:flex; justify-content:space-between; align-items:center;
+  background:white; padding:15px 20px; border-radius:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:25px;
+  gap:10px; flex-wrap:wrap;
 }
 
 .btn{
-  display:block;
-  background:#2563eb;
-  color:white;
-  text-decoration:none;
-  padding:16px;
-  margin:10px 0;
-  border-radius:10px;
-  text-align:center;
-  font-weight:bold;
-  transition:.2s;
-  border:none;
+  display:inline-block;
+  background:#2563eb; color:white; text-decoration:none;
+  padding:12px 14px; border-radius:10px; text-align:center;
+  font-weight:bold; transition:.2s; border:none; cursor:pointer;
 }
 
-.btn:hover{
-  background:#1d4ed8;
-  transform:translateY(-1px);
-}
+.btn:hover{ background:#1d4ed8; transform:translateY(-1px); }
 
-.nav{
-  display:flex;
-  gap:10px;
-  align-items:center;
-}
+.nav{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
-.grid2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:20px;
-}
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:750px){ .grid2{ grid-template-columns:1fr; } }
 
 input, select, textarea{
-  width:100%;
-  padding:14px;
-  font-size:18px;
-  margin-bottom:15px;
-  border-radius:8px;
-  border:1px solid #d1d5db;
+  width:100%; padding:14px; font-size:18px; margin-bottom:15px;
+  border-radius:8px; border:1px solid #d1d5db;
 }
 
-/* flashes */
-.flash{
-  padding:12px;
-  border-radius:8px;
-  margin-bottom:15px;
-  font-weight:bold;
-}
-.flash.success{
-  background:#dcfce7;
-  color:#166534;
-  border:1px solid #22c55e;
-}
-.flash.error{
-  background:#fee2e2;
-  color:#991b1b;
-  border:1px solid #ef4444;
-}
+.flash{ padding:12px; border-radius:8px; margin-bottom:15px; font-weight:bold; }
+.flash.success{ background:#dcfce7; color:#166534; border:1px solid #22c55e; }
+.flash.error{ background:#fee2e2; color:#991b1b; border:1px solid #ef4444; }
 
-/* ---------- SCANNER MODE (PERSISTENT) ---------- */
-.fullscreen-btn{
-  background:#10b981;
-  border:none;
-  cursor:pointer;
-}
-.fullscreen-btn:hover{
-  background:#059669;
-}
-
-.scan-mode .wrap{
-  max-width:100%;
-}
-
+/* ===== SCANNER MODE (PERSISTENT) ===== */
+.scan-mode .wrap{ max-width:100%; }
 .scan-mode input, .scan-mode textarea, .scan-mode select{
-  font-size:34px;
-  padding:28px;
-  text-align:center;
+  font-size:34px; padding:28px; text-align:center;
 }
+.scan-mode h2{ font-size:28px; }
 
-.scan-mode h2{
-  font-size:28px;
+.scanner-btn{ background:#10b981; }
+.scanner-btn:hover{ background:#059669; }
+
+.fs-btn{ background:#111827; }
+.fs-btn:hover{ background:#0b1220; }
+
+.badge{
+  background:#fef3c7; color:#92400e; border:1px solid #f59e0b;
+  padding:8px 10px; border-radius:10px; font-weight:700;
+  display:none;
 }
-
+.badge.show{ display:inline-block; }
 </style>
 </head>
 
@@ -119,11 +71,21 @@ input, select, textarea{
 <div class="wrap">
 
   <div class="topbar">
-    <h2>{{ title or "Roll Inventory" }}</h2>
+    <h2 style="margin:0">{{ title or "Roll Inventory" }}</h2>
 
     <div class="nav">
       <a class="btn" href="{{ url_for('home') }}">Back</a>
-      <button class="btn fullscreen-btn" id="scannerBtn" type="button" onclick="toggleScannerMode()">Scanner Mode</button>
+
+      <button class="btn scanner-btn" id="scannerBtn" type="button" onclick="toggleScannerMode()">
+        Scanner Mode
+      </button>
+
+      <button class="btn fs-btn" id="fsBtn" type="button" onclick="enterFullscreen()">
+        Full Screen
+      </button>
+
+      <span class="badge" id="fsBadge">Fullscreen off</span>
+
       <a class="btn" href="{{ url_for('logout') }}">Logout</a>
     </div>
   </div>
@@ -141,22 +103,19 @@ input, select, textarea{
 </div>
 
 <script>
-/* ---------- AUTOFOCUS TOP INPUT ---------- */
+/* ---------- autofocus top field ---------- */
 function focusTop(){
   const el = document.querySelector("input:not([type=hidden]):not([readonly]), textarea, select");
-  if(el){
-    el.focus();
-    el.select?.();
-  }
+  if(el){ el.focus(); el.select?.(); }
 }
 
-/* ---------- SOUND ON SUBMIT ---------- */
+/* ---------- success sound on submit ---------- */
 document.addEventListener("submit", function(){
   const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
   audio.play().catch(()=>{});
 });
 
-/* ---------- PERSISTENT SCANNER MODE ---------- */
+/* ---------- SCANNER MODE persistence ---------- */
 function applyScannerMode(on){
   if(on){
     document.body.classList.add("scan-mode");
@@ -167,41 +126,58 @@ function applyScannerMode(on){
     localStorage.setItem("scannerMode","off");
     document.getElementById("scannerBtn").textContent = "Scanner Mode";
   }
+  setTimeout(focusTop, 80);
 }
 
 function toggleScannerMode(){
   const isOn = document.body.classList.contains("scan-mode");
   applyScannerMode(!isOn);
-
-  // try to enter/exit fullscreen too
-  if(!isOn){
-    if(!document.fullscreenElement){
-      document.documentElement.requestFullscreen().catch(()=>{});
-    }
-  }else{
-    if(document.fullscreenElement){
-      document.exitFullscreen().catch(()=>{});
-    }
-  }
-  setTimeout(focusTop,120);
 }
 
-/* restore on page load */
+/* ---------- FULLSCREEN (cannot be forced across page navigation reliably) ---------- */
+function updateFsUI(){
+  const badge = document.getElementById("fsBadge");
+  const inFs = !!document.fullscreenElement;
+  badge.classList.toggle("show", !inFs);
+}
+
+async function enterFullscreen(){
+  try{
+    await document.documentElement.requestFullscreen();
+  }catch(e){
+    // browser blocked it (normal on navigation)
+  }
+  updateFsUI();
+  setTimeout(focusTop, 80);
+}
+
+/* Restore modes on every page load */
 window.addEventListener("load", function(){
   const saved = localStorage.getItem("scannerMode");
-  if(saved === "on"){
-    applyScannerMode(true);
-  }else{
-    applyScannerMode(false);
+  applyScannerMode(saved === "on");
+
+  // Try to re-enter fullscreen if user had it ON before
+  // NOTE: browser may block this because it isn't a user click.
+  const wantedFs = localStorage.getItem("wantedFullscreen") === "on";
+  if(wantedFs){
+    enterFullscreen(); // may fail silently, then badge shows "Fullscreen off"
   }
+  updateFsUI();
   focusTop();
 });
 
-/* if user exits fullscreen manually, keep scan-mode but update button */
+/* Track user's intent for fullscreen */
+document.getElementById("fsBtn").addEventListener("click", function(){
+  localStorage.setItem("wantedFullscreen","on");
+});
+
+document.addEventListener("fullscreenchange", updateFsUI);
+
+/* If user exits fullscreen, remember intent off */
 document.addEventListener("fullscreenchange", function(){
-  const isOn = document.body.classList.contains("scan-mode");
-  if(isOn){
-    document.getElementById("scannerBtn").textContent = document.fullscreenElement ? "Exit Scanner" : "Scanner Mode (FS off)";
+  if(!document.fullscreenElement){
+    // keep intent ON so you can re-click "Full Screen" quickly
+    // If you prefer it to turn off, change to: localStorage.setItem("wantedFullscreen","off");
   }
 });
 </script>
