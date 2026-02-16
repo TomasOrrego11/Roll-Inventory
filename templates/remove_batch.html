@@ -1,0 +1,21 @@
+<!-- =========================
+templates/remove_batch.html  (CREAR ESTE ARCHIVO)
+========================= -->
+{% extends "base.html" %}
+{% set title = "Batch Remove → USED" %}
+{% block content %}
+
+<form method="POST" action="{{ url_for('remove_batch_form') }}">
+  <label>Scan many Roll IDs (one per line)</label>
+  <textarea name="roll_ids" id="roll_ids" required placeholder="Scan IDs here..."></textarea>
+  <button class="btn" type="submit">OK → Move all to USED</button>
+</form>
+
+<script>
+  window.addEventListener("load", () => {
+    const el = document.getElementById("roll_ids");
+    if (el) el.focus();
+  });
+</script>
+
+{% endblock %}
