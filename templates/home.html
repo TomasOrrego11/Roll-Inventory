@@ -1,54 +1,32 @@
 {% extends "base.html" %}
 {% set title = "Roll Inventory" %}
-
 {% block content %}
 
 <div class="grid2">
-
   <div>
-    <a class="btn" href="{{ url_for('add_form', warehouse='WH1') }}">
-      1) Add to Warehouse 1 (WH1)
-    </a>
-
-    <a class="btn" href="{{ url_for('add_form', warehouse='WH2') }}">
-      2) Add to Warehouse 2 (WH2)
-    </a>
-
-    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}">
-      3) Transfer WH1 → WH2
-    </a>
-
-    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}">
-      4) Transfer WH2 → WH1
-    </a>
+    <a class="btn primary" href="{{ url_for('add_form', warehouse='WH1') }}">Add to WH1 <span class="hint">Warehouse 1</span></a>
+    <a class="btn primary" href="{{ url_for('add_form', warehouse='WH2') }}">Add to WH2 <span class="hint">Warehouse 2</span></a>
+    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}">Transfer <span class="hint">WH1 → WH2</span></a>
+    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}">Transfer <span class="hint">WH2 → WH1</span></a>
   </div>
 
   <div>
-    <a class="btn" href="{{ url_for('remove_form') }}">
-      5) Remove Roll → USED
-    </a>
-
-    <a class="btn" href="{{ url_for('remove_batch_form') }}">
-      6) Batch Remove → USED
-    </a>
+    <a class="btn" href="{{ url_for('remove_form') }}">Remove Roll <span class="hint">→ USED</span></a>
+    <a class="btn" href="{{ url_for('remove_batch_form') }}">Batch Remove <span class="hint">many scans</span></a>
+    <a class="btn" href="{{ url_for('search') }}">Search <span class="hint">paper type</span></a>
   </div>
-
 </div>
 
-<a class="btn" href="{{ url_for('inventory', warehouse='WH1') }}">
-View Inventory WH1
-</a>
+<hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0;">
 
-<a class="btn" href="{{ url_for('inventory', warehouse='WH2') }}">
-View Inventory WH2
-</a>
-
-<a class="btn" href="{{ url_for('inventory', warehouse='USED') }}">
-View Inventory USED
-</a>
-
-<a class="btn" href="{{ url_for('search') }}">
-Search by Paper Type
-</a>
+<div class="grid2">
+  <div>
+    <a class="btn" href="{{ url_for('inventory', warehouse='WH1') }}">View Inventory <span class="hint">WH1</span></a>
+    <a class="btn" href="{{ url_for('inventory', warehouse='WH2') }}">View Inventory <span class="hint">WH2</span></a>
+  </div>
+  <div>
+    <a class="btn" href="{{ url_for('inventory', warehouse='USED') }}">View Inventory <span class="hint">USED</span></a>
+  </div>
+</div>
 
 {% endblock %}
