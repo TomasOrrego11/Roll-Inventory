@@ -1,71 +1,78 @@
 {% extends "base.html" %}
 {% set title = "Edit / Move Roll" %}
 {% block content %}
-<a class="btn inline" href="{{ url_for('home') }}">Back</a>
 
-<h3>Edit Roll: {{ roll.roll_id }}</h3>
+<h3>Edit Roll: {{ r.roll_id }}</h3>
 
 <form method="post" autocomplete="off">
-  <label>PaperType</label>
-  <input name="paper_type" value="{{ roll.paper_type }}" required>
 
-  <label>Weight (lbs, integer)</label>
-  <input name="weight_lbs" value="{{ roll.weight_lbs }}" inputmode="numeric" required>
+  <label>Paper Type</label>
+  <input name="paper_type" value="{{ r.paper_type }}" required>
+
+  <label>Weight (lbs)</label>
+  <input name="weight" value="{{ r.weight }}" inputmode="numeric" required>
 
   <label>Warehouse</label>
   <select name="warehouse" id="warehouse" required>
     {% for w in warehouses %}
-      <option value="{{ w }}" {% if roll.warehouse == w %}selected{% endif %}>{{ w }}</option>
+      <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ w }}</option>
     {% endfor %}
   </select>
 
-  <label>Sublocation (required for WH1/WH2, empty for CONSUMED/USED)</label>
-  <select name="sublocation" id="sublocation"></select>
+  <label>Sublocation</label>
+  <select name="location" id="location" required></select>
 
-  <button class="btn" type="submit">Save Changes</button>
+  <br>
+
+  <button class="btn primary" type="submit">Save Changes</button>
+
+</form>
+
+<hr style="margin:30px 0;">
+
+<form method="post"
+      action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
+      onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
+
+  <button class="btn danger" type="submit">
+    DELETE THIS ROLL
+  </button>
+
 </form>
 
 <script>
-  const wh1 = {{ wh1_sublocs|tojson }};
-  const wh2 = {{ wh2_sublocs|tojson }};
-  const currentWH = "{{ roll.warehouse }}";
-  const currentSub = "{{ roll.sublocation }}";
+const wh1 = {{ locations_for('WH1')|tojson }};
+const wh2 = {{ locations_for('WH2')|tojson }};
+const used = ["USED"];
 
-  const whEl = document.getElementById("warehouse");
-  const subEl = document.getElementById("sublocation");
+const currentWH = "{{ r.warehouse }}";
+const currentLoc = "{{ r.location }}";
 
-  function addOptions(list, selected) {
-    subEl.innerHTML = "";
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Select sublocation";
-    subEl.appendChild(placeholder);
+const whEl = document.getElementById("warehouse");
+const locEl = document.getElementById("location");
 
-    list.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
-      if (v === selected) opt.selected = true;
-      subEl.appendChild(opt);
-    });
+function fillLocations(wh, selected=null){
+  locEl.innerHTML = "";
 
-    if (!list.includes(selected)) subEl.value = "";
-  }
+  let list = [];
+  if(wh === "WH1") list = wh1;
+  else if(wh === "WH2") list = wh2;
+  else list = used;
 
-  function fillSublocs(wh) {
-    if (wh === "WH1") addOptions(wh1, currentSub);
-    else if (wh === "WH2") addOptions(wh2, currentSub);
-    else {
-      subEl.innerHTML = "";
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "(none)";
-      subEl.appendChild(opt);
-      subEl.value = "";
-    }
-  }
+  list.forEach(v=>{
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    if(v === (selected || currentLoc)) opt.selected = true;
+    locEl.appendChild(opt);
+  });
+}
 
-  whEl.addEventListener("change", () => fillSublocs(whEl.value));
-  fillSublocs(currentWH);
+whEl.addEventListener("change", ()=>{
+  fillLocations(whEl.value, null);
+});
+
+fillLocations(currentWH, currentLoc);
 </script>
+
 {% endblock %}
