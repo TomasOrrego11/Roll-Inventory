@@ -1,62 +1,45 @@
-{% extends "base.html" %}
+<!-- =========================
+templates/inventory.html  (REEMPLAZA COMPLETO)
+========================= -->
 {% set title = "Inventory " ~ warehouse %}
+{% extends "base.html" %}
 {% block content %}
+  <h2>Inventory: {{ warehouse }}</h2>
 
-<a class="btn inline" href="{{ url_for('home') }}">← Back</a>
+  <div class="stats">
+    <div><strong>Rolls:</strong> {{ totals.cnt }}</div>
+    <div><strong>Total Weight:</strong> {{ totals.total_weight }}</div>
+  </div>
 
-<h2 style="margin-top:10px;">Inventory: {{ warehouse }}</h2>
-
-<div class="stats" style="margin:12px 0;">
-  <div><strong>Rolls:</strong> {{ totals.cnt }}</div>
-  <div><strong>Total Weight:</strong> {{ totals.total_weight }}</div>
-</div>
-
-{% if breakdown and breakdown|length %}
-  <h3 style="margin:18px 0 8px;">By Paper Type</h3>
   <table>
     <thead>
       <tr>
         <th>Paper Type</th>
-        <th>Rolls</th>
-        <th>Total Weight</th>
+        <th>Roll ID</th>
+        <th>Weight</th>
+        <th>Subloc</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for b in breakdown %}
+      {% for r in rows %}
       <tr>
-        <td>{{ b.paper_type }}</td>
-        <td>{{ b.roll_count }}</td>
-        <td>{{ b.total_weight }}</td>
+        <td>{{ r.paper_type }}</td>
+        <td class="mono">{{ r.roll_id }}</td>
+        <td>{{ r.weight }}</td>
+        <td>{{ r.location }}</td>
+        <td class="actions">
+          <a class="btn inline" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Move/Edit</a>
+
+          <form method="post"
+                action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
+                style="display:inline"
+                onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
+            <button class="btn danger inline" type="submit">DELETE</button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-{% endif %}
-
-<h3 style="margin:18px 0 8px;">Roll List</h3>
-<table>
-  <thead>
-    <tr>
-      <th>Paper Type</th>
-      <th>Roll ID</th>
-      <th>Weight</th>
-      <th>Subloc</th>
-      <th>Warehouse</th>
-      <th>Created</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in rows %}
-    <tr>
-      <td>{{ r.paper_type }}</td>
-      <td class="mono">{{ r.roll_id }}</td>
-      <td>{{ r.weight }}</td>
-      <td>{{ r.location }}</td>
-      <td>{{ r.warehouse }}</td>
-      <td class="muted">{{ r.created_at }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
 {% endblock %}
