@@ -22,6 +22,8 @@ WH_LOCATIONS = {
     "USED": ["USED"],
 }
 
+ALLOWED_WAREHOUSES = ("WH1", "WH2", "USED")
+
 def locations_for(warehouse: str):
     return WH_LOCATIONS.get((warehouse or "").upper().strip(), [])
 
@@ -58,7 +60,6 @@ def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # Base table (keep small, add columns safely)
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS rolls (
@@ -69,7 +70,6 @@ def init_db():
         """
     )
 
-    # Ensure columns exist
     if not col_exists(cur, "rolls", "weight"):
         cur.execute("ALTER TABLE rolls ADD COLUMN weight INTEGER;")
     if not col_exists(cur, "rolls", "location"):
@@ -77,8 +77,7 @@ def init_db():
     if not col_exists(cur, "rolls", "warehouse"):
         cur.execute("ALTER TABLE rolls ADD COLUMN warehouse TEXT;")
 
-    # Fill NULLs so NOT NULL can be applied without crashing
-    # (use safe defaults)
+    # Fill NULLs (safe defaults)
     cur.execute("UPDATE rolls SET weight = 1 WHERE weight IS NULL;")
     cur.execute("UPDATE rolls SET warehouse = 'WH1' WHERE warehouse IS NULL;")
     cur.execute("UPDATE rolls SET location = '02' WHERE location IS NULL AND warehouse='WH1';")
@@ -86,12 +85,10 @@ def init_db():
     cur.execute("UPDATE rolls SET location = 'USED' WHERE location IS NULL AND warehouse='USED';")
     cur.execute("UPDATE rolls SET location = COALESCE(location,'02') WHERE location IS NULL;")
 
-    # Enforce NOT NULL
     cur.execute("ALTER TABLE rolls ALTER COLUMN weight SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN location SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
 
-    # Warehouse constraint
     cur.execute(
         """
         DO $$
@@ -106,7 +103,6 @@ def init_db():
         """
     )
 
-    # Movements log
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS movements (
@@ -231,14 +227,13 @@ def add_form(warehouse):
 @require_login
 def inventory(warehouse):
     warehouse = clean(warehouse).upper()
-    if warehouse not in ("WH1", "WH2", "USED"):
+    if warehouse not in ALLOWED_WAREHOUSES:
         flash("Invalid warehouse.", "error")
         return redirect(url_for("home"))
 
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # rows
     cur.execute(
         """
         SELECT roll_id, paper_type, weight, location, warehouse, created_at
@@ -250,7 +245,6 @@ def inventory(warehouse):
     )
     rows = cur.fetchall()
 
-    # totals (overall)
     cur.execute(
         """
         SELECT COUNT(*) AS cnt, COALESCE(SUM(weight), 0) AS total_weight
@@ -261,19 +255,6 @@ def inventory(warehouse):
     )
     totals = cur.fetchone() or {"cnt": 0, "total_weight": 0}
 
-    # breakdown by paper_type
-    cur.execute(
-        """
-        SELECT paper_type, COUNT(*) AS roll_count, COALESCE(SUM(weight), 0) AS total_weight
-        FROM rolls
-        WHERE warehouse=%s
-        GROUP BY paper_type
-        ORDER BY paper_type
-        """,
-        (warehouse,),
-    )
-    breakdown = cur.fetchall()
-
     cur.close()
     conn.close()
 
@@ -282,8 +263,124 @@ def inventory(warehouse):
         warehouse=warehouse,
         rows=rows,
         totals=totals,
-        breakdown=breakdown,
     )
+
+# ========= EDIT / MOVE (PC) =========
+@app.route("/edit/<roll_id>", methods=["GET", "POST"])
+@require_login
+def edit_roll_form(roll_id):
+    roll_id = clean(roll_id)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT roll_id, paper_type, weight, location, warehouse FROM rolls WHERE roll_id=%s",
+        (roll_id,),
+    )
+    r = cur.fetchone()
+    if not r:
+        cur.close()
+        conn.close()
+        flash("Roll ID not found.", "error")
+        return redirect(url_for("home"))
+
+    if request.method == "GET":
+        cur.close()
+        conn.close()
+        return render_template(
+            "edit.html",
+            r=r,
+            warehouses=ALLOWED_WAREHOUSES,
+            locations=locations_for(r["warehouse"]),
+        )
+
+    new_wh = clean(request.form.get("warehouse")).upper()
+    new_loc = clean(request.form.get("location"))
+    new_paper = clean(request.form.get("paper_type"))
+    new_weight = parse_weight(request.form.get("weight"))
+
+    if new_wh not in ALLOWED_WAREHOUSES:
+        cur.close()
+        conn.close()
+        flash("Invalid warehouse.", "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
+
+    valid_locs = locations_for(new_wh)
+    if new_loc not in valid_locs:
+        cur.close()
+        conn.close()
+        flash("Invalid Sub-Location.", "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
+
+    if not new_paper or new_weight is None:
+        cur.close()
+        conn.close()
+        flash("Paper Type and Weight are required.", "error")
+        return redirect(url_for("edit_roll_form", roll_id=roll_id))
+
+    old_wh = r["warehouse"]
+    old_loc = r["location"]
+
+    cur.execute(
+        """
+        UPDATE rolls
+        SET paper_type=%s, weight=%s, warehouse=%s, location=%s
+        WHERE roll_id=%s
+        """,
+        (new_paper, new_weight, new_wh, new_loc, roll_id),
+    )
+
+    cur.execute(
+        """
+        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc)
+        VALUES (%s,%s,%s,%s,%s,%s)
+        """,
+        (roll_id, "EDIT_MOVE", old_wh, new_wh, old_loc, new_loc),
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Updated.", "success")
+    return redirect(url_for("inventory", warehouse=new_wh))
+
+# ========= DELETE (PC) =========
+@app.route("/delete/<roll_id>", methods=["POST"])
+@require_login
+def delete_roll_pc(roll_id):
+    roll_id = clean(roll_id)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT warehouse, location FROM rolls WHERE roll_id=%s", (roll_id,))
+    r = cur.fetchone()
+    if not r:
+        cur.close()
+        conn.close()
+        flash("Roll ID not found.", "error")
+        return redirect(url_for("home"))
+
+    wh = r["warehouse"]
+    loc = r["location"]
+
+    cur.execute("DELETE FROM rolls WHERE roll_id=%s", (roll_id,))
+    cur.execute(
+        """
+        INSERT INTO movements (roll_id, action, from_wh, from_loc)
+        VALUES (%s,%s,%s,%s)
+        """,
+        (roll_id, "DELETE", wh, loc),
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Deleted permanently.", "success")
+    return redirect(url_for("inventory", warehouse=wh))
 
 # ========= TRANSFER =========
 @app.route("/transfer/<from_wh>/<to_wh>", methods=["GET", "POST"])
@@ -402,9 +499,8 @@ def remove_batch_form():
         flash("Paste/scan roll IDs first.", "error")
         return redirect(url_for("remove_batch_form"))
 
-    # split by newline / comma / spaces
     ids = [x for x in re.split(r"[\s,;]+", raw) if x.strip()]
-    ids = list(dict.fromkeys(ids))  # dedupe preserving order
+    ids = list(dict.fromkeys(ids))
 
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
