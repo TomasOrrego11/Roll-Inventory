@@ -24,11 +24,18 @@ WH_LOCATIONS = {
 
 ALLOWED_WAREHOUSES = ("WH1", "WH2", "USED")
 
+
 def locations_for(warehouse: str):
     return WH_LOCATIONS.get((warehouse or "").upper().strip(), [])
 
+
+# make available inside templates if needed
+app.jinja_env.globals["locations_for"] = locations_for
+
+
 def clean(s: str) -> str:
     return (s or "").strip()
+
 
 def parse_weight(s: str):
     s = clean(s)
@@ -40,10 +47,12 @@ def parse_weight(s: str):
     except:
         return None
 
+
 def get_conn():
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL missing in Render env vars.")
     return psycopg2.connect(DATABASE_URL, sslmode="require")
+
 
 def col_exists(cur, table, col):
     cur.execute(
@@ -56,10 +65,12 @@ def col_exists(cur, table, col):
     )
     return cur.fetchone() is not None
 
+
 def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
+    # ---- rolls base ----
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS rolls (
@@ -85,10 +96,12 @@ def init_db():
     cur.execute("UPDATE rolls SET location = 'USED' WHERE location IS NULL AND warehouse='USED';")
     cur.execute("UPDATE rolls SET location = COALESCE(location,'02') WHERE location IS NULL;")
 
+    # enforce NOT NULL
     cur.execute("ALTER TABLE rolls ALTER COLUMN weight SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN location SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
 
+    # warehouse constraint
     cur.execute(
         """
         DO $$
@@ -103,30 +116,48 @@ def init_db():
         """
     )
 
+    # ---- movements base ----
+    # Create minimal table if missing
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS movements (
-            id BIGSERIAL PRIMARY KEY,
-            roll_id TEXT NOT NULL,
-            action TEXT NOT NULL,
-            from_wh TEXT,
-            to_wh TEXT,
-            from_loc TEXT,
-            to_loc TEXT,
-            moved_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            id BIGSERIAL PRIMARY KEY
         );
         """
     )
 
+    # Ensure ALL expected columns exist (fixes "column action does not exist")
+    if not col_exists(cur, "movements", "roll_id"):
+        cur.execute("ALTER TABLE movements ADD COLUMN roll_id TEXT;")
+    if not col_exists(cur, "movements", "action"):
+        cur.execute("ALTER TABLE movements ADD COLUMN action TEXT;")
+    if not col_exists(cur, "movements", "from_wh"):
+        cur.execute("ALTER TABLE movements ADD COLUMN from_wh TEXT;")
+    if not col_exists(cur, "movements", "to_wh"):
+        cur.execute("ALTER TABLE movements ADD COLUMN to_wh TEXT;")
+    if not col_exists(cur, "movements", "from_loc"):
+        cur.execute("ALTER TABLE movements ADD COLUMN from_loc TEXT;")
+    if not col_exists(cur, "movements", "to_loc"):
+        cur.execute("ALTER TABLE movements ADD COLUMN to_loc TEXT;")
+    if not col_exists(cur, "movements", "moved_at"):
+        cur.execute("ALTER TABLE movements ADD COLUMN moved_at TIMESTAMPTZ;")
+
+    # Backfill defaults for old rows that might exist
+    cur.execute("UPDATE movements SET moved_at = NOW() WHERE moved_at IS NULL;")
+    cur.execute("UPDATE movements SET action = COALESCE(action, 'LEGACY') WHERE action IS NULL;")
+    cur.execute("UPDATE movements SET roll_id = COALESCE(roll_id, '') WHERE roll_id IS NULL;")
+
     conn.commit()
     cur.close()
     conn.close()
+
 
 @app.before_request
 def _ensure_db():
     if not getattr(app, "_db_ready", False):
         init_db()
         app._db_ready = True
+
 
 def require_login(f):
     @wraps(f)
@@ -135,6 +166,7 @@ def require_login(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return wrapper
+
 
 # ========= AUTH =========
 @app.route("/login", methods=["GET", "POST"])
@@ -152,16 +184,19 @@ def login():
     flash("Invalid credentials.", "error")
     return redirect(url_for("login"))
 
+
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
 
 # ========= HOME =========
 @app.route("/")
 @require_login
 def home():
     return render_template("home.html")
+
 
 # ========= ADD =========
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
@@ -209,8 +244,8 @@ def add_form(warehouse):
     )
     cur.execute(
         """
-        INSERT INTO movements (roll_id, action, to_wh, to_loc)
-        VALUES (%s,%s,%s,%s)
+        INSERT INTO movements (roll_id, action, to_wh, to_loc, moved_at)
+        VALUES (%s,%s,%s,%s, NOW())
         """,
         (roll_id, "ADD", warehouse, location),
     )
@@ -221,6 +256,7 @@ def add_form(warehouse):
 
     flash("Roll added.", "success")
     return redirect(url_for("add_form", warehouse=warehouse))
+
 
 # ========= INVENTORY =========
 @app.route("/inventory/<warehouse>")
@@ -258,12 +294,8 @@ def inventory(warehouse):
     cur.close()
     conn.close()
 
-    return render_template(
-        "inventory.html",
-        warehouse=warehouse,
-        rows=rows,
-        totals=totals,
-    )
+    return render_template("inventory.html", warehouse=warehouse, rows=rows, totals=totals)
+
 
 # ========= EDIT / MOVE (PC) =========
 @app.route("/edit/<roll_id>", methods=["GET", "POST"])
@@ -278,39 +310,42 @@ def edit_roll_form(roll_id):
         "SELECT roll_id, paper_type, weight, location, warehouse FROM rolls WHERE roll_id=%s",
         (roll_id,),
     )
-    r = cur.fetchone()
-    if not r:
+    db_roll = cur.fetchone()
+    if not db_roll:
         cur.close()
         conn.close()
         flash("Roll ID not found.", "error")
         return redirect(url_for("home"))
+
+    # map to your template variable names
+    roll = {
+        "roll_id": db_roll["roll_id"],
+        "paper_type": db_roll["paper_type"],
+        "weight_lbs": db_roll["weight"],
+        "warehouse": db_roll["warehouse"],
+        "sublocation": db_roll["location"],
+    }
 
     if request.method == "GET":
         cur.close()
         conn.close()
         return render_template(
             "edit.html",
-            r=r,
-            warehouses=ALLOWED_WAREHOUSES,
-            locations=locations_for(r["warehouse"]),
+            roll=roll,
+            warehouses=list(ALLOWED_WAREHOUSES),
+            wh1_sublocs=locations_for("WH1"),
+            wh2_sublocs=locations_for("WH2"),
         )
 
     new_wh = clean(request.form.get("warehouse")).upper()
-    new_loc = clean(request.form.get("location"))
+    new_sub = clean(request.form.get("sublocation"))
     new_paper = clean(request.form.get("paper_type"))
-    new_weight = parse_weight(request.form.get("weight"))
+    new_weight = parse_weight(request.form.get("weight_lbs"))
 
     if new_wh not in ALLOWED_WAREHOUSES:
         cur.close()
         conn.close()
         flash("Invalid warehouse.", "error")
-        return redirect(url_for("edit_roll_form", roll_id=roll_id))
-
-    valid_locs = locations_for(new_wh)
-    if new_loc not in valid_locs:
-        cur.close()
-        conn.close()
-        flash("Invalid Sub-Location.", "error")
         return redirect(url_for("edit_roll_form", roll_id=roll_id))
 
     if not new_paper or new_weight is None:
@@ -319,8 +354,19 @@ def edit_roll_form(roll_id):
         flash("Paper Type and Weight are required.", "error")
         return redirect(url_for("edit_roll_form", roll_id=roll_id))
 
-    old_wh = r["warehouse"]
-    old_loc = r["location"]
+    if new_wh == "USED":
+        new_loc = "USED"
+    else:
+        valid = locations_for(new_wh)
+        if new_sub not in valid:
+            cur.close()
+            conn.close()
+            flash("Invalid Sub-Location.", "error")
+            return redirect(url_for("edit_roll_form", roll_id=roll_id))
+        new_loc = new_sub
+
+    old_wh = db_roll["warehouse"]
+    old_loc = db_roll["location"]
 
     cur.execute(
         """
@@ -333,8 +379,8 @@ def edit_roll_form(roll_id):
 
     cur.execute(
         """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc)
-        VALUES (%s,%s,%s,%s,%s,%s)
+        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
+        VALUES (%s,%s,%s,%s,%s,%s, NOW())
         """,
         (roll_id, "EDIT_MOVE", old_wh, new_wh, old_loc, new_loc),
     )
@@ -345,6 +391,44 @@ def edit_roll_form(roll_id):
 
     flash("Updated.", "success")
     return redirect(url_for("inventory", warehouse=new_wh))
+
+
+# ========= MOVE TO USED (PC button) =========
+@app.route("/to-used/<roll_id>", methods=["POST"])
+@require_login
+def remove_roll_pc(roll_id):
+    roll_id = clean(roll_id)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT warehouse, location FROM rolls WHERE roll_id=%s", (roll_id,))
+    r = cur.fetchone()
+    if not r:
+        cur.close()
+        conn.close()
+        flash("Roll ID not found.", "error")
+        return redirect(url_for("home"))
+
+    from_wh = r["warehouse"]
+    from_loc = r["location"]
+
+    cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (roll_id,))
+    cur.execute(
+        """
+        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
+        VALUES (%s,%s,%s,%s,%s,%s, NOW())
+        """,
+        (roll_id, "TO_USED_PC", from_wh, "USED", from_loc, "USED"),
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Moved to USED.", "success")
+    return redirect(url_for("inventory", warehouse=from_wh))
+
 
 # ========= DELETE (PC) =========
 @app.route("/delete/<roll_id>", methods=["POST"])
@@ -369,8 +453,8 @@ def delete_roll_pc(roll_id):
     cur.execute("DELETE FROM rolls WHERE roll_id=%s", (roll_id,))
     cur.execute(
         """
-        INSERT INTO movements (roll_id, action, from_wh, from_loc)
-        VALUES (%s,%s,%s,%s)
+        INSERT INTO movements (roll_id, action, from_wh, from_loc, moved_at)
+        VALUES (%s,%s,%s,%s, NOW())
         """,
         (roll_id, "DELETE", wh, loc),
     )
@@ -381,6 +465,7 @@ def delete_roll_pc(roll_id):
 
     flash("Deleted permanently.", "success")
     return redirect(url_for("inventory", warehouse=wh))
+
 
 # ========= TRANSFER =========
 @app.route("/transfer/<from_wh>/<to_wh>", methods=["GET", "POST"])
@@ -435,8 +520,8 @@ def transfer_form(from_wh, to_wh):
     )
     cur.execute(
         """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc)
-        VALUES (%s,%s,%s,%s,%s,%s)
+        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
+        VALUES (%s,%s,%s,%s,%s,%s, NOW())
         """,
         (roll_id, "TRANSFER", from_wh, to_wh, r["location"], to_loc),
     )
@@ -447,6 +532,7 @@ def transfer_form(from_wh, to_wh):
 
     flash("Transferred.", "success")
     return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+
 
 # ========= REMOVE (MOVE TO USED) =========
 @app.route("/remove", methods=["GET", "POST"])
@@ -474,8 +560,8 @@ def remove_form():
     cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (roll_id,))
     cur.execute(
         """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc)
-        VALUES (%s,%s,%s,%s,%s,%s)
+        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
+        VALUES (%s,%s,%s,%s,%s,%s, NOW())
         """,
         (roll_id, "REMOVE_TO_USED", r["warehouse"], "USED", r["location"], "USED"),
     )
@@ -486,6 +572,7 @@ def remove_form():
 
     flash("Moved to USED.", "success")
     return redirect(url_for("remove_form"))
+
 
 # ========= REMOVE BATCH =========
 @app.route("/remove-batch", methods=["GET", "POST"])
@@ -518,8 +605,8 @@ def remove_batch_form():
         cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (rid,))
         cur.execute(
             """
-            INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc)
-            VALUES (%s,%s,%s,%s,%s,%s)
+            INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
+            VALUES (%s,%s,%s,%s,%s,%s, NOW())
             """,
             (rid, "BATCH_REMOVE_TO_USED", r["warehouse"], "USED", r["location"], "USED"),
         )
@@ -534,6 +621,7 @@ def remove_batch_form():
         msg += f" Missing: {', '.join(missing[:10])}" + ("..." if len(missing) > 10 else "")
     flash(msg, "success" if moved else "error")
     return redirect(url_for("remove_batch_form"))
+
 
 # ========= SEARCH =========
 @app.route("/search", methods=["GET", "POST"])
@@ -558,6 +646,7 @@ def search():
         conn.close()
 
     return render_template("search.html", q=q, rows=rows)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
