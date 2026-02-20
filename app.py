@@ -17,11 +17,10 @@ APP_USER = os.environ.get("APP_USER", "warehouse")
 APP_PASS = os.environ.get("APP_PASS", "mittera")
 
 WH_LOCATIONS = {
-    "WH1": ["02","03","04","05","06","07","08","09","10","12","16","17","18","19"],
+    "WH1": ["02", "03", "04", "05", "06", "07", "08", "09", "10", "12", "16", "17", "18", "19"],
     "WH2": [str(n) for n in range(20, 31)],  # 20..30
     "USED": ["USED"],
 }
-
 ALLOWED_WAREHOUSES = ("WH1", "WH2", "USED")
 
 
@@ -29,7 +28,6 @@ def locations_for(warehouse: str):
     return WH_LOCATIONS.get((warehouse or "").upper().strip(), [])
 
 
-# make available inside templates if needed
 app.jinja_env.globals["locations_for"] = locations_for
 
 
@@ -66,11 +64,57 @@ def col_exists(cur, table, col):
     return cur.fetchone() is not None
 
 
+def get_table_cols(cur, table: str) -> set[str]:
+    cur.execute(
+        """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name=%s
+        """,
+        (table,),
+    )
+    return {row[0] for row in cur.fetchall()}
+
+
+def log_movement(cur, **fields):
+    """
+    Writes to movements table safely across schema variants.
+    Supports legacy schemas that require ts_utc NOT NULL.
+    """
+    cols = get_table_cols(cur, "movements")
+
+    insert_cols = []
+    insert_vals = []
+    params = []
+
+    # timestamp columns (legacy/new)
+    if "ts_utc" in cols:
+        insert_cols.append("ts_utc")
+        insert_vals.append("NOW()")
+    elif "moved_at" in cols:
+        insert_cols.append("moved_at")
+        insert_vals.append("NOW()")
+
+    # standard columns if present
+    for k in ("roll_id", "action", "from_wh", "to_wh", "from_loc", "to_loc"):
+        if k in cols and k in fields:
+            insert_cols.append(k)
+            insert_vals.append("%s")
+            params.append(fields[k])
+
+    # if nothing matches, do nothing
+    if not insert_cols:
+        return
+
+    q = f"INSERT INTO movements ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
+    cur.execute(q, tuple(params))
+
+
 def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # ---- rolls base ----
+    # ---- rolls ----
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS rolls (
@@ -96,12 +140,10 @@ def init_db():
     cur.execute("UPDATE rolls SET location = 'USED' WHERE location IS NULL AND warehouse='USED';")
     cur.execute("UPDATE rolls SET location = COALESCE(location,'02') WHERE location IS NULL;")
 
-    # enforce NOT NULL
     cur.execute("ALTER TABLE rolls ALTER COLUMN weight SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN location SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
 
-    # warehouse constraint
     cur.execute(
         """
         DO $$
@@ -116,8 +158,8 @@ def init_db():
         """
     )
 
-    # ---- movements base ----
-    # Create minimal table if missing
+    # ---- movements ----
+    # Create minimal if missing (do NOT drop existing)
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS movements (
@@ -126,26 +168,33 @@ def init_db():
         """
     )
 
-    # Ensure ALL expected columns exist (fixes "column action does not exist")
-    if not col_exists(cur, "movements", "roll_id"):
-        cur.execute("ALTER TABLE movements ADD COLUMN roll_id TEXT;")
-    if not col_exists(cur, "movements", "action"):
-        cur.execute("ALTER TABLE movements ADD COLUMN action TEXT;")
-    if not col_exists(cur, "movements", "from_wh"):
-        cur.execute("ALTER TABLE movements ADD COLUMN from_wh TEXT;")
-    if not col_exists(cur, "movements", "to_wh"):
-        cur.execute("ALTER TABLE movements ADD COLUMN to_wh TEXT;")
-    if not col_exists(cur, "movements", "from_loc"):
-        cur.execute("ALTER TABLE movements ADD COLUMN from_loc TEXT;")
-    if not col_exists(cur, "movements", "to_loc"):
-        cur.execute("ALTER TABLE movements ADD COLUMN to_loc TEXT;")
-    if not col_exists(cur, "movements", "moved_at"):
-        cur.execute("ALTER TABLE movements ADD COLUMN moved_at TIMESTAMPTZ;")
+    # Ensure required columns exist (if your table already has extra columns, no problem)
+    for col, ddl in [
+        ("roll_id", "ALTER TABLE movements ADD COLUMN roll_id TEXT;"),
+        ("action", "ALTER TABLE movements ADD COLUMN action TEXT;"),
+        ("from_wh", "ALTER TABLE movements ADD COLUMN from_wh TEXT;"),
+        ("to_wh", "ALTER TABLE movements ADD COLUMN to_wh TEXT;"),
+        ("from_loc", "ALTER TABLE movements ADD COLUMN from_loc TEXT;"),
+        ("to_loc", "ALTER TABLE movements ADD COLUMN to_loc TEXT;"),
+        ("moved_at", "ALTER TABLE movements ADD COLUMN moved_at TIMESTAMPTZ;"),
+        ("ts_utc", "ALTER TABLE movements ADD COLUMN ts_utc TIMESTAMPTZ;"),
+    ]:
+        if not col_exists(cur, "movements", col):
+            cur.execute(ddl)
 
-    # Backfill defaults for old rows that might exist
-    cur.execute("UPDATE movements SET moved_at = NOW() WHERE moved_at IS NULL;")
-    cur.execute("UPDATE movements SET action = COALESCE(action, 'LEGACY') WHERE action IS NULL;")
-    cur.execute("UPDATE movements SET roll_id = COALESCE(roll_id, '') WHERE roll_id IS NULL;")
+    # If ts_utc exists and is NOT NULL in your DB, guarantee it always has a default and no NULLs
+    cols = get_table_cols(cur, "movements")
+    if "ts_utc" in cols:
+        cur.execute("UPDATE movements SET ts_utc = NOW() WHERE ts_utc IS NULL;")
+        cur.execute("ALTER TABLE movements ALTER COLUMN ts_utc SET DEFAULT NOW();")
+
+    if "moved_at" in cols:
+        cur.execute("UPDATE movements SET moved_at = NOW() WHERE moved_at IS NULL;")
+        cur.execute("ALTER TABLE movements ALTER COLUMN moved_at SET DEFAULT NOW();")
+
+    if "action" in cols:
+        cur.execute("UPDATE movements SET action = COALESCE(action, 'LEGACY') WHERE action IS NULL;")
+        # don't force NOT NULL (avoid breaking legacy)
 
     conn.commit()
     cur.close()
@@ -242,13 +291,7 @@ def add_form(warehouse):
         """,
         (roll_id, paper_type, weight, location, warehouse),
     )
-    cur.execute(
-        """
-        INSERT INTO movements (roll_id, action, to_wh, to_loc, moved_at)
-        VALUES (%s,%s,%s,%s, NOW())
-        """,
-        (roll_id, "ADD", warehouse, location),
-    )
+    log_movement(cur, roll_id=roll_id, action="ADD", to_wh=warehouse, to_loc=location)
 
     conn.commit()
     cur.close()
@@ -317,8 +360,8 @@ def edit_roll_form(roll_id):
         flash("Roll ID not found.", "error")
         return redirect(url_for("home"))
 
-    # map to your template variable names
-    roll = {
+    # r = lo que tu template edit.html está usando (r.roll_id, r.weight_lbs, r.sublocation)
+    r = {
         "roll_id": db_roll["roll_id"],
         "paper_type": db_roll["paper_type"],
         "weight_lbs": db_roll["weight"],
@@ -331,7 +374,7 @@ def edit_roll_form(roll_id):
         conn.close()
         return render_template(
             "edit.html",
-            roll=roll,
+            r=r,
             warehouses=list(ALLOWED_WAREHOUSES),
             wh1_sublocs=locations_for("WH1"),
             wh2_sublocs=locations_for("WH2"),
@@ -376,14 +419,7 @@ def edit_roll_form(roll_id):
         """,
         (new_paper, new_weight, new_wh, new_loc, roll_id),
     )
-
-    cur.execute(
-        """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
-        VALUES (%s,%s,%s,%s,%s,%s, NOW())
-        """,
-        (roll_id, "EDIT_MOVE", old_wh, new_wh, old_loc, new_loc),
-    )
+    log_movement(cur, roll_id=roll_id, action="EDIT_MOVE", from_wh=old_wh, to_wh=new_wh, from_loc=old_loc, to_loc=new_loc)
 
     conn.commit()
     cur.close()
@@ -414,13 +450,7 @@ def remove_roll_pc(roll_id):
     from_loc = r["location"]
 
     cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (roll_id,))
-    cur.execute(
-        """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
-        VALUES (%s,%s,%s,%s,%s,%s, NOW())
-        """,
-        (roll_id, "TO_USED_PC", from_wh, "USED", from_loc, "USED"),
-    )
+    log_movement(cur, roll_id=roll_id, action="TO_USED_PC", from_wh=from_wh, to_wh="USED", from_loc=from_loc, to_loc="USED")
 
     conn.commit()
     cur.close()
@@ -451,13 +481,7 @@ def delete_roll_pc(roll_id):
     loc = r["location"]
 
     cur.execute("DELETE FROM rolls WHERE roll_id=%s", (roll_id,))
-    cur.execute(
-        """
-        INSERT INTO movements (roll_id, action, from_wh, from_loc, moved_at)
-        VALUES (%s,%s,%s,%s, NOW())
-        """,
-        (roll_id, "DELETE", wh, loc),
-    )
+    log_movement(cur, roll_id=roll_id, action="DELETE", from_wh=wh, from_loc=loc)
 
     conn.commit()
     cur.close()
@@ -479,12 +503,7 @@ def transfer_form(from_wh, to_wh):
         return redirect(url_for("home"))
 
     if request.method == "GET":
-        return render_template(
-            "transfer.html",
-            from_wh=from_wh,
-            to_wh=to_wh,
-            locations=locations_for(to_wh),
-        )
+        return render_template("transfer.html", from_wh=from_wh, to_wh=to_wh, locations=locations_for(to_wh))
 
     roll_id = clean(request.form.get("roll_id"))
     to_loc = clean(request.form.get("location"))
@@ -514,17 +533,8 @@ def transfer_form(from_wh, to_wh):
         flash(f"Roll is not in {from_wh}.", "error")
         return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
 
-    cur.execute(
-        "UPDATE rolls SET warehouse=%s, location=%s WHERE roll_id=%s",
-        (to_wh, to_loc, roll_id),
-    )
-    cur.execute(
-        """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
-        VALUES (%s,%s,%s,%s,%s,%s, NOW())
-        """,
-        (roll_id, "TRANSFER", from_wh, to_wh, r["location"], to_loc),
-    )
+    cur.execute("UPDATE rolls SET warehouse=%s, location=%s WHERE roll_id=%s", (to_wh, to_loc, roll_id))
+    log_movement(cur, roll_id=roll_id, action="TRANSFER", from_wh=from_wh, to_wh=to_wh, from_loc=r["location"], to_loc=to_loc)
 
     conn.commit()
     cur.close()
@@ -558,13 +568,7 @@ def remove_form():
         return redirect(url_for("remove_form"))
 
     cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (roll_id,))
-    cur.execute(
-        """
-        INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
-        VALUES (%s,%s,%s,%s,%s,%s, NOW())
-        """,
-        (roll_id, "REMOVE_TO_USED", r["warehouse"], "USED", r["location"], "USED"),
-    )
+    log_movement(cur, roll_id=roll_id, action="REMOVE_TO_USED", from_wh=r["warehouse"], to_wh="USED", from_loc=r["location"], to_loc="USED")
 
     conn.commit()
     cur.close()
@@ -603,13 +607,7 @@ def remove_batch_form():
             continue
 
         cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (rid,))
-        cur.execute(
-            """
-            INSERT INTO movements (roll_id, action, from_wh, to_wh, from_loc, to_loc, moved_at)
-            VALUES (%s,%s,%s,%s,%s,%s, NOW())
-            """,
-            (rid, "BATCH_REMOVE_TO_USED", r["warehouse"], "USED", r["location"], "USED"),
-        )
+        log_movement(cur, roll_id=rid, action="BATCH_REMOVE_TO_USED", from_wh=r["warehouse"], to_wh="USED", from_loc=r["location"], to_loc="USED")
         moved += 1
 
     conn.commit()
