@@ -61,6 +61,22 @@ def col_exists(cur, table, col):
     return cur.fetchone() is not None
 
 
+def _colname_from_row(row):
+    """
+    Works for tuple rows and RealDictCursor rows.
+    - tuple: ('paper_type',)
+    - dict: {'column_name': 'paper_type'}
+    """
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row.get("column_name")
+    # tuple/list
+    if isinstance(row, (tuple, list)) and len(row) > 0:
+        return row[0]
+    return None
+
+
 def get_table_cols(cur, table: str) -> set[str]:
     cur.execute(
         """
@@ -71,7 +87,12 @@ def get_table_cols(cur, table: str) -> set[str]:
         (table,),
     )
     rows = cur.fetchall() or []
-    return {row[0] for row in rows if row and row[0]}
+    out = set()
+    for row in rows:
+        name = _colname_from_row(row)
+        if name:
+            out.add(name)
+    return out
 
 
 # -------------------------
@@ -108,7 +129,7 @@ def log_movement(cur, **fields):
         insert_cols.append("moved_at")
         insert_vals.append("NOW()")
 
-    # fallbacks for NOT NULL columns
+    # fallbacks for NOT NULL columns (legacy schemas)
     if "to_wh" in cols and not fields.get("to_wh"):
         fields["to_wh"] = fields.get("from_wh") or "USED"
     if "to_loc" in cols and not fields.get("to_loc"):
@@ -219,7 +240,7 @@ def init_db():
         """
     )
 
-    # make sure at least ONE of each logical field exists
+    # ensure logical columns exist
     if not col_exists(cur, "rolls", "weight_lbs") and not col_exists(cur, "rolls", "weight"):
         cur.execute("ALTER TABLE rolls ADD COLUMN weight_lbs INTEGER;")
     if not col_exists(cur, "rolls", "sublocation") and not col_exists(cur, "rolls", "location"):
@@ -243,7 +264,7 @@ def init_db():
     cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
     cur.execute(f"ALTER TABLE rolls ALTER COLUMN {loc_col} SET NOT NULL;")
 
-    # remove the constraint that is breaking WH/USED moves
+    # DROP the broken location constraint (it was blocking USED / transfers)
     cur.execute(
         """
         DO $$
@@ -255,7 +276,7 @@ def init_db():
         """
     )
 
-    # keep only a safe warehouse check
+    # keep a safe warehouse check
     cur.execute(
         """
         DO $$
@@ -453,7 +474,6 @@ def edit_roll_form(roll_id):
         flash("Roll ID not found.", "error")
         return redirect(url_for("home"))
 
-    # Provide both names for any template version
     r = {
         "roll_id": db_roll["roll_id"],
         "paper_type": db_roll["paper_type"],
@@ -511,7 +531,7 @@ def edit_roll_form(roll_id):
     return redirect(url_for("inventory", warehouse=new_wh))
 
 
-# ========= MOVE TO USED (PC button) =========
+# ========= MOVE TO USED =========
 @app.route("/to-used/<roll_id>", methods=["POST"])
 @require_login
 def to_used_pc(roll_id):
@@ -558,7 +578,6 @@ def delete_roll_pc(roll_id):
     wh = r["warehouse"]
     loc = r["location"]
 
-    # log BEFORE delete (handles FK)
     log_movement(cur, roll_id=roll_id, action="DELETE", from_wh=wh, to_wh=wh, from_loc=loc, to_loc=loc)
     cur.execute("DELETE FROM rolls WHERE roll_id=%s", (roll_id,))
 
