@@ -28,6 +28,7 @@ def locations_for(warehouse: str):
     return WH_LOCATIONS.get((warehouse or "").upper().strip(), [])
 
 
+# Make available inside Jinja templates
 app.jinja_env.globals["locations_for"] = locations_for
 
 
@@ -42,7 +43,7 @@ def parse_weight(s: str):
     try:
         w = int(float(s))
         return w if w > 0 else None
-    except:
+    except Exception:
         return None
 
 
@@ -65,6 +66,9 @@ def col_exists(cur, table, col):
 
 
 def get_table_cols(cur, table: str) -> set[str]:
+    """
+    Works with both regular cursor (tuples) and RealDictCursor (dicts).
+    """
     cur.execute(
         """
         SELECT column_name
@@ -73,7 +77,15 @@ def get_table_cols(cur, table: str) -> set[str]:
         """,
         (table,),
     )
-    return {row[0] for row in cur.fetchall()}
+    rows = cur.fetchall() or []
+    cols = set()
+    for row in rows:
+        if isinstance(row, dict):
+            cols.add(row.get("column_name"))
+        else:
+            cols.add(row[0])
+    cols.discard(None)
+    return cols
 
 
 def log_movement(cur, **fields):
@@ -102,7 +114,7 @@ def log_movement(cur, **fields):
             insert_vals.append("%s")
             params.append(fields[k])
 
-    # if nothing matches, do nothing
+    # nothing to insert
     if not insert_cols:
         return
 
@@ -140,10 +152,12 @@ def init_db():
     cur.execute("UPDATE rolls SET location = 'USED' WHERE location IS NULL AND warehouse='USED';")
     cur.execute("UPDATE rolls SET location = COALESCE(location,'02') WHERE location IS NULL;")
 
+    # Enforce NOT NULL
     cur.execute("ALTER TABLE rolls ALTER COLUMN weight SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN location SET NOT NULL;")
     cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
 
+    # Warehouse check constraint
     cur.execute(
         """
         DO $$
@@ -168,7 +182,7 @@ def init_db():
         """
     )
 
-    # Ensure required columns exist (if your table already has extra columns, no problem)
+    # Ensure columns exist (no harm if table has extras)
     for col, ddl in [
         ("roll_id", "ALTER TABLE movements ADD COLUMN roll_id TEXT;"),
         ("action", "ALTER TABLE movements ADD COLUMN action TEXT;"),
@@ -182,7 +196,7 @@ def init_db():
         if not col_exists(cur, "movements", col):
             cur.execute(ddl)
 
-    # If ts_utc exists and is NOT NULL in your DB, guarantee it always has a default and no NULLs
+    # Guarantee defaults for legacy NOT NULL columns if they exist
     cols = get_table_cols(cur, "movements")
     if "ts_utc" in cols:
         cur.execute("UPDATE movements SET ts_utc = NOW() WHERE ts_utc IS NULL;")
@@ -194,7 +208,6 @@ def init_db():
 
     if "action" in cols:
         cur.execute("UPDATE movements SET action = COALESCE(action, 'LEGACY') WHERE action IS NULL;")
-        # don't force NOT NULL (avoid breaking legacy)
 
     conn.commit()
     cur.close()
@@ -291,6 +304,7 @@ def add_form(warehouse):
         """,
         (roll_id, paper_type, weight, location, warehouse),
     )
+
     log_movement(cur, roll_id=roll_id, action="ADD", to_wh=warehouse, to_loc=location)
 
     conn.commit()
@@ -322,7 +336,20 @@ def inventory(warehouse):
         """,
         (warehouse,),
     )
-    rows = cur.fetchall()
+    rows_db = cur.fetchall() or []
+
+    # template-friendly keys
+    rows = []
+    for rr in rows_db:
+        rows.append(
+            {
+                "roll_id": rr["roll_id"],
+                "paper_type": rr["paper_type"],
+                "weight": rr["weight"],
+                "location": rr["location"],
+                "warehouse": rr["warehouse"],
+            }
+        )
 
     cur.execute(
         """
@@ -360,30 +387,28 @@ def edit_roll_form(roll_id):
         flash("Roll ID not found.", "error")
         return redirect(url_for("home"))
 
-    # r = lo que tu template edit.html está usando (r.roll_id, r.weight_lbs, r.sublocation)
     r = {
         "roll_id": db_roll["roll_id"],
         "paper_type": db_roll["paper_type"],
-        "weight_lbs": db_roll["weight"],
+        "weight": db_roll["weight"],
         "warehouse": db_roll["warehouse"],
-        "sublocation": db_roll["location"],
+        "location": db_roll["location"],
     }
 
     if request.method == "GET":
         cur.close()
         conn.close()
-        return render_template(
-            "edit.html",
-            r=r,
-            warehouses=list(ALLOWED_WAREHOUSES),
-            wh1_sublocs=locations_for("WH1"),
-            wh2_sublocs=locations_for("WH2"),
-        )
+        return render_template("edit.html", r=r, warehouses=list(ALLOWED_WAREHOUSES))
 
     new_wh = clean(request.form.get("warehouse")).upper()
-    new_sub = clean(request.form.get("sublocation"))
+    new_loc = clean(request.form.get("location"))
     new_paper = clean(request.form.get("paper_type"))
-    new_weight = parse_weight(request.form.get("weight_lbs"))
+
+    # ✅ weight optional: blank => keep current
+    raw_weight = clean(request.form.get("weight"))
+    new_weight = parse_weight(raw_weight)
+    if raw_weight == "":
+        new_weight = db_roll["weight"]
 
     if new_wh not in ALLOWED_WAREHOUSES:
         cur.close()
@@ -401,12 +426,11 @@ def edit_roll_form(roll_id):
         new_loc = "USED"
     else:
         valid = locations_for(new_wh)
-        if new_sub not in valid:
+        if new_loc not in valid:
             cur.close()
             conn.close()
             flash("Invalid Sub-Location.", "error")
             return redirect(url_for("edit_roll_form", roll_id=roll_id))
-        new_loc = new_sub
 
     old_wh = db_roll["warehouse"]
     old_loc = db_roll["location"]
@@ -419,7 +443,15 @@ def edit_roll_form(roll_id):
         """,
         (new_paper, new_weight, new_wh, new_loc, roll_id),
     )
-    log_movement(cur, roll_id=roll_id, action="EDIT_MOVE", from_wh=old_wh, to_wh=new_wh, from_loc=old_loc, to_loc=new_loc)
+    log_movement(
+        cur,
+        roll_id=roll_id,
+        action="EDIT_MOVE",
+        from_wh=old_wh,
+        to_wh=new_wh,
+        from_loc=old_loc,
+        to_loc=new_loc,
+    )
 
     conn.commit()
     cur.close()
@@ -432,7 +464,7 @@ def edit_roll_form(roll_id):
 # ========= MOVE TO USED (PC button) =========
 @app.route("/to-used/<roll_id>", methods=["POST"])
 @require_login
-def remove_roll_pc(roll_id):
+def to_used_pc(roll_id):
     roll_id = clean(roll_id)
 
     conn = get_conn()
@@ -639,7 +671,7 @@ def search():
             """,
             (f"%{q}%",),
         )
-        rows = cur.fetchall()
+        rows = cur.fetchall() or []
         cur.close()
         conn.close()
 
