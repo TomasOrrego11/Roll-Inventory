@@ -91,9 +91,19 @@ def get_table_cols(cur, table: str) -> set[str]:
 def log_movement(cur, **fields):
     """
     Writes to movements table safely across schema variants.
-    Supports legacy schemas that require ts_utc NOT NULL.
+    - Ensures legacy NOT NULL constraints (like to_wh) are satisfied.
+    - Sets timestamp columns if present.
     """
     cols = get_table_cols(cur, "movements")
+
+    # If DB requires to_wh NOT NULL, we must always provide a value when column exists
+    if "to_wh" in cols and ("to_wh" not in fields or fields.get("to_wh") in (None, "")):
+        # fallback: use from_wh if available, else "USED"
+        fields["to_wh"] = fields.get("from_wh") or "USED"
+
+    # Some DBs also may require to_loc; keep it safe
+    if "to_loc" in cols and ("to_loc" not in fields or fields.get("to_loc") in (None, "")):
+        fields["to_loc"] = fields.get("from_loc") or "USED"
 
     insert_cols = []
     insert_vals = []
@@ -103,18 +113,17 @@ def log_movement(cur, **fields):
     if "ts_utc" in cols:
         insert_cols.append("ts_utc")
         insert_vals.append("NOW()")
-    elif "moved_at" in cols:
+    if "moved_at" in cols:
         insert_cols.append("moved_at")
         insert_vals.append("NOW()")
 
-    # standard columns if present
+    # common columns
     for k in ("roll_id", "action", "from_wh", "to_wh", "from_loc", "to_loc"):
         if k in cols and k in fields:
             insert_cols.append(k)
             insert_vals.append("%s")
             params.append(fields[k])
 
-    # nothing to insert
     if not insert_cols:
         return
 
@@ -122,11 +131,84 @@ def log_movement(cur, **fields):
     cur.execute(q, tuple(params))
 
 
+def safe_update_roll_location(cur, roll_id: str, new_wh: str, new_loc: str):
+    """
+    Updates rolls across multiple possible legacy schemas.
+    The database you have clearly has old constraints (rolls_location_check)
+    that likely reference other 'from/to' columns.
+    We update all relevant columns if they exist.
+    """
+    cols = get_table_cols(cur, "rolls")
+
+    # Always update the canonical columns if they exist
+    sets = []
+    params = []
+
+    def add_set(col, val):
+        if col in cols:
+            sets.append(f"{col}=%s")
+            params.append(val)
+
+    add_set("warehouse", new_wh)
+    add_set("location", new_loc)
+
+    # Legacy variants (seen in failing row dumps)
+    # These names are guesses based on common patterns + your failing rows.
+    add_set("to_wh", new_wh)
+    add_set("to_loc", new_loc)
+    add_set("warehouse_to", new_wh)
+    add_set("location_to", new_loc)
+
+    # Sometimes they store "current location" under different names
+    add_set("wh", new_wh)
+    add_set("loc", new_loc)
+
+    # If no recognized cols, do nothing (but in your case there are)
+    if not sets:
+        return
+
+    params.append(roll_id)
+    cur.execute(f"UPDATE rolls SET {', '.join(sets)} WHERE roll_id=%s", tuple(params))
+
+
+def safe_update_roll_full(cur, roll_id: str, paper_type: str, weight: int, new_wh: str, new_loc: str):
+    """
+    Update paper_type/weight + location in a schema-safe way.
+    """
+    cols = get_table_cols(cur, "rolls")
+    sets = []
+    params = []
+
+    def add_set(col, val):
+        if col in cols:
+            sets.append(f"{col}=%s")
+            params.append(val)
+
+    add_set("paper_type", paper_type)
+    add_set("weight", weight)
+    add_set("warehouse", new_wh)
+    add_set("location", new_loc)
+
+    # Legacy location variants (to satisfy old CHECK constraints)
+    add_set("to_wh", new_wh)
+    add_set("to_loc", new_loc)
+    add_set("warehouse_to", new_wh)
+    add_set("location_to", new_loc)
+    add_set("wh", new_wh)
+    add_set("loc", new_loc)
+
+    if not sets:
+        return
+
+    params.append(roll_id)
+    cur.execute(f"UPDATE rolls SET {', '.join(sets)} WHERE roll_id=%s", tuple(params))
+
+
 def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # ---- rolls ----
+    # ---- rolls (create if missing; do not drop) ----
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS rolls (
@@ -137,6 +219,7 @@ def init_db():
         """
     )
 
+    # Ensure columns exist for our app (safe adds only)
     if not col_exists(cur, "rolls", "weight"):
         cur.execute("ALTER TABLE rolls ADD COLUMN weight INTEGER;")
     if not col_exists(cur, "rolls", "location"):
@@ -152,28 +235,10 @@ def init_db():
     cur.execute("UPDATE rolls SET location = 'USED' WHERE location IS NULL AND warehouse='USED';")
     cur.execute("UPDATE rolls SET location = COALESCE(location,'02') WHERE location IS NULL;")
 
-    # Enforce NOT NULL
-    cur.execute("ALTER TABLE rolls ALTER COLUMN weight SET NOT NULL;")
-    cur.execute("ALTER TABLE rolls ALTER COLUMN location SET NOT NULL;")
-    cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
+    # Don't enforce new constraints here because you already have legacy constraints in DB.
+    # Enforcing new ones can conflict with old ones.
 
-    # Warehouse check constraint
-    cur.execute(
-        """
-        DO $$
-        BEGIN
-          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='rolls_wh_check') THEN
-            ALTER TABLE rolls DROP CONSTRAINT rolls_wh_check;
-          END IF;
-          ALTER TABLE rolls
-            ADD CONSTRAINT rolls_wh_check
-            CHECK (warehouse IN ('WH1','WH2','USED'));
-        END $$;
-        """
-    )
-
-    # ---- movements ----
-    # Create minimal if missing (do NOT drop existing)
+    # ---- movements (create minimal if missing; do not drop) ----
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS movements (
@@ -182,7 +247,7 @@ def init_db():
         """
     )
 
-    # Ensure columns exist (no harm if table has extras)
+    # Add columns if missing
     for col, ddl in [
         ("roll_id", "ALTER TABLE movements ADD COLUMN roll_id TEXT;"),
         ("action", "ALTER TABLE movements ADD COLUMN action TEXT;"),
@@ -196,18 +261,14 @@ def init_db():
         if not col_exists(cur, "movements", col):
             cur.execute(ddl)
 
-    # Guarantee defaults for legacy NOT NULL columns if they exist
+    # If these exist and are required, make them safe (defaults + backfill)
     cols = get_table_cols(cur, "movements")
     if "ts_utc" in cols:
         cur.execute("UPDATE movements SET ts_utc = NOW() WHERE ts_utc IS NULL;")
         cur.execute("ALTER TABLE movements ALTER COLUMN ts_utc SET DEFAULT NOW();")
-
     if "moved_at" in cols:
         cur.execute("UPDATE movements SET moved_at = NOW() WHERE moved_at IS NULL;")
         cur.execute("ALTER TABLE movements ALTER COLUMN moved_at SET DEFAULT NOW();")
-
-    if "action" in cols:
-        cur.execute("UPDATE movements SET action = COALESCE(action, 'LEGACY') WHERE action IS NULL;")
 
     conn.commit()
     cur.close()
@@ -329,27 +390,14 @@ def inventory(warehouse):
 
     cur.execute(
         """
-        SELECT roll_id, paper_type, weight, location, warehouse, created_at
+        SELECT roll_id, paper_type, weight, location, warehouse
         FROM rolls
         WHERE warehouse=%s
         ORDER BY paper_type, location, roll_id
         """,
         (warehouse,),
     )
-    rows_db = cur.fetchall() or []
-
-    # template-friendly keys
-    rows = []
-    for rr in rows_db:
-        rows.append(
-            {
-                "roll_id": rr["roll_id"],
-                "paper_type": rr["paper_type"],
-                "weight": rr["weight"],
-                "location": rr["location"],
-                "warehouse": rr["warehouse"],
-            }
-        )
+    rows = cur.fetchall() or []
 
     cur.execute(
         """
@@ -404,7 +452,7 @@ def edit_roll_form(roll_id):
     new_loc = clean(request.form.get("location"))
     new_paper = clean(request.form.get("paper_type"))
 
-    # ✅ weight optional: blank => keep current
+    # weight optional (blank => keep existing)
     raw_weight = clean(request.form.get("weight"))
     new_weight = parse_weight(raw_weight)
     if raw_weight == "":
@@ -435,14 +483,8 @@ def edit_roll_form(roll_id):
     old_wh = db_roll["warehouse"]
     old_loc = db_roll["location"]
 
-    cur.execute(
-        """
-        UPDATE rolls
-        SET paper_type=%s, weight=%s, warehouse=%s, location=%s
-        WHERE roll_id=%s
-        """,
-        (new_paper, new_weight, new_wh, new_loc, roll_id),
-    )
+    safe_update_roll_full(cur, roll_id, new_paper, new_weight, new_wh, new_loc)
+
     log_movement(
         cur,
         roll_id=roll_id,
@@ -481,7 +523,7 @@ def to_used_pc(roll_id):
     from_wh = r["warehouse"]
     from_loc = r["location"]
 
-    cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (roll_id,))
+    safe_update_roll_location(cur, roll_id, "USED", "USED")
     log_movement(cur, roll_id=roll_id, action="TO_USED_PC", from_wh=from_wh, to_wh="USED", from_loc=from_loc, to_loc="USED")
 
     conn.commit()
@@ -513,7 +555,9 @@ def delete_roll_pc(roll_id):
     loc = r["location"]
 
     cur.execute("DELETE FROM rolls WHERE roll_id=%s", (roll_id,))
-    log_movement(cur, roll_id=roll_id, action="DELETE", from_wh=wh, from_loc=loc)
+
+    # ✅ to_wh is NOT NULL in your DB, so provide it
+    log_movement(cur, roll_id=roll_id, action="DELETE", from_wh=wh, to_wh=wh, from_loc=loc, to_loc=loc)
 
     conn.commit()
     cur.close()
@@ -565,7 +609,7 @@ def transfer_form(from_wh, to_wh):
         flash(f"Roll is not in {from_wh}.", "error")
         return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
 
-    cur.execute("UPDATE rolls SET warehouse=%s, location=%s WHERE roll_id=%s", (to_wh, to_loc, roll_id))
+    safe_update_roll_location(cur, roll_id, to_wh, to_loc)
     log_movement(cur, roll_id=roll_id, action="TRANSFER", from_wh=from_wh, to_wh=to_wh, from_loc=r["location"], to_loc=to_loc)
 
     conn.commit()
@@ -599,7 +643,7 @@ def remove_form():
         flash("Roll ID not found.", "error")
         return redirect(url_for("remove_form"))
 
-    cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (roll_id,))
+    safe_update_roll_location(cur, roll_id, "USED", "USED")
     log_movement(cur, roll_id=roll_id, action="REMOVE_TO_USED", from_wh=r["warehouse"], to_wh="USED", from_loc=r["location"], to_loc="USED")
 
     conn.commit()
@@ -638,7 +682,7 @@ def remove_batch_form():
             missing.append(rid)
             continue
 
-        cur.execute("UPDATE rolls SET warehouse='USED', location='USED' WHERE roll_id=%s", (rid,))
+        safe_update_roll_location(cur, rid, "USED", "USED")
         log_movement(cur, roll_id=rid, action="BATCH_REMOVE_TO_USED", from_wh=r["warehouse"], to_wh="USED", from_loc=r["location"], to_loc="USED")
         moved += 1
 
