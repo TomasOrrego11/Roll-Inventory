@@ -10,7 +10,10 @@
   <input name="paper_type" value="{{ r.paper_type }}" required>
 
   <label>Weight (lbs)</label>
-  <input name="weight" value="{{ r.weight }}" inputmode="numeric" required>
+  <input name="weight"
+         value="{{ r.weight }}"
+         inputmode="numeric"
+         placeholder="Leave blank to keep current weight">
 
   <label>Warehouse</label>
   <select name="warehouse" id="warehouse" required>
