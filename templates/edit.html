@@ -10,10 +10,8 @@
   <input name="paper_type" value="{{ r.paper_type }}" required>
 
   <label>Weight (lbs)</label>
-  <input name="weight"
-         value="{{ r.weight }}"
-         inputmode="numeric"
-         placeholder="Leave blank to keep current weight">
+  <!-- No required: if you leave blank, backend keeps current weight -->
+  <input name="weight" value="{{ r.weight }}" inputmode="numeric">
 
   <label>Warehouse</label>
   <select name="warehouse" id="warehouse" required>
@@ -25,7 +23,7 @@
   <label>Sublocation</label>
   <select name="location" id="location" required></select>
 
-  <br>
+  <br><br>
 
   <button class="btn primary" type="submit">Save Changes</button>
 
@@ -36,11 +34,14 @@
 <form method="post"
       action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
       onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
+  <button class="btn danger" type="submit">DELETE THIS ROLL</button>
+</form>
 
-  <button class="btn danger" type="submit">
-    DELETE THIS ROLL
-  </button>
-
+<form method="post"
+      action="{{ url_for('to_used_pc', roll_id=r.roll_id) }}"
+      onsubmit="return confirm('Move this roll to USED?');"
+      style="margin-top: 12px;">
+  <button class="btn" type="submit">MOVE TO USED</button>
 </form>
 
 <script>
