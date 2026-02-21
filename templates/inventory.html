@@ -1,45 +1,57 @@
-<!-- =========================
-templates/inventory.html  (REEMPLAZA COMPLETO)
-========================= -->
-{% set title = "Inventory " ~ warehouse %}
 {% extends "base.html" %}
+{% set title = "Inventory " ~ warehouse %}
 {% block content %}
-  <h2>Inventory: {{ warehouse }}</h2>
 
-  <div class="stats">
-    <div><strong>Rolls:</strong> {{ totals.cnt }}</div>
-    <div><strong>Total Weight:</strong> {{ totals.total_weight }}</div>
-  </div>
+<h2>Inventory: {{ warehouse }}</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Paper Type</th>
-        <th>Roll ID</th>
-        <th>Weight</th>
-        <th>Subloc</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-      <tr>
-        <td>{{ r.paper_type }}</td>
-        <td class="mono">{{ r.roll_id }}</td>
-        <td>{{ r.weight }}</td>
-        <td>{{ r.location }}</td>
-        <td class="actions">
-          <a class="btn inline" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Move/Edit</a>
+<div class="stats">
+  <div><strong>Rolls:</strong> {{ totals.cnt }}</div>
+  <div><strong>Total Weight:</strong> {{ totals.total_weight }}</div>
+</div>
 
-          <form method="post"
-                action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
-                style="display:inline"
-                onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
-            <button class="btn danger inline" type="submit">DELETE</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<table>
+  <thead>
+    <tr>
+      <th>Paper Type</th>
+      <th>Roll ID</th>
+      <th>Weight</th>
+      <th>Subloc</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.paper_type }}</td>
+      <td class="mono">{{ r.roll_id }}</td>
+      <td>{{ r.weight }}</td>
+      <td>{{ r.location }}</td>
+      <td class="actions">
+
+        <a class="btn inline" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">
+          Move / Edit
+        </a>
+
+        {% if warehouse != "USED" %}
+        <form method="post"
+              action="{{ url_for('to_used_pc', roll_id=r.roll_id) }}"
+              style="display:inline"
+              onsubmit="return confirm('Move this roll to USED?');">
+          <button class="btn inline" type="submit">To USED</button>
+        </form>
+        {% endif %}
+
+        <form method="post"
+              action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
+              style="display:inline"
+              onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
+          <button class="btn danger inline" type="submit">Delete</button>
+        </form>
+
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 {% endblock %}
