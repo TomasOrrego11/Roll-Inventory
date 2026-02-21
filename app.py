@@ -71,23 +71,13 @@ def get_table_cols(cur, table: str) -> set[str]:
         (table,),
     )
     rows = cur.fetchall() or []
-    out = set()
-    for row in rows:
-        # tuple cursor -> ('colname',)
-        out.add(row[0])
-    out.discard(None)
-    return out
+    return {row[0] for row in rows if row and row[0]}
 
 
 # -------------------------
 # Schema abstraction (legacy/new)
 # -------------------------
 def rolls_colmap(cols: set[str]):
-    """
-    Returns the actual column names used in the DB for the logical fields.
-    Supports legacy: weight_lbs, sublocation
-    Supports new:    weight,     location
-    """
     weight_col = "weight_lbs" if "weight_lbs" in cols else ("weight" if "weight" in cols else None)
     loc_col = "sublocation" if "sublocation" in cols else ("location" if "location" in cols else None)
     wh_col = "warehouse" if "warehouse" in cols else None
@@ -96,20 +86,14 @@ def rolls_colmap(cols: set[str]):
 
 
 def read_form_weight():
-    # works with either template name="weight" or name="weight_lbs"
     return parse_weight(request.form.get("weight") or request.form.get("weight_lbs") or "")
 
 
 def read_form_location():
-    # works with either template name="location" or name="sublocation"
     return clean(request.form.get("location") or request.form.get("sublocation") or "")
 
 
 def log_movement(cur, **fields):
-    """
-    Insert in movements, respecting legacy schemas.
-    Ensures NOT NULL columns like to_wh/to_loc get safe fallbacks.
-    """
     cols = get_table_cols(cur, "movements")
 
     insert_cols = []
@@ -124,7 +108,7 @@ def log_movement(cur, **fields):
         insert_cols.append("moved_at")
         insert_vals.append("NOW()")
 
-    # fallbacks for schemas that require to_wh/to_loc NOT NULL
+    # fallbacks for NOT NULL columns
     if "to_wh" in cols and not fields.get("to_wh"):
         fields["to_wh"] = fields.get("from_wh") or "USED"
     if "to_loc" in cols and not fields.get("to_loc"):
@@ -143,80 +127,12 @@ def log_movement(cur, **fields):
     cur.execute(q, tuple(params))
 
 
-def safe_insert_roll(cur, roll_id: str, paper_type: str, weight: int, warehouse: str, location: str):
-    cols = get_table_cols(cur, "rolls")
-    weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
-
-    # Minimal safety: if DB doesn't have these, bail.
-    if not paper_col or not weight_col or not loc_col or not wh_col:
-        raise RuntimeError(f"rolls table schema unsupported. cols={sorted(list(cols))}")
-
-    insert_cols = ["roll_id", paper_col, weight_col, wh_col, loc_col]
-    insert_vals = ["%s", "%s", "%s", "%s", "%s"]
-    params = [roll_id, paper_type, weight, warehouse, location]
-
-    q = f"INSERT INTO rolls ({', '.join(insert_cols)}) VALUES ({', '.join(insert_vals)})"
-    cur.execute(q, tuple(params))
-
-
-def safe_update_roll_location(cur, roll_id: str, new_wh: str, new_loc: str):
-    cols = get_table_cols(cur, "rolls")
-    weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
-
-    set_sql = []
-    params = []
-
-    if wh_col:
-        set_sql.append(f"{wh_col}=%s")
-        params.append(new_wh)
-    if loc_col:
-        set_sql.append(f"{loc_col}=%s")
-        params.append(new_loc)
-
-    if not set_sql:
-        return
-
-    params.append(roll_id)
-    cur.execute(f"UPDATE rolls SET {', '.join(set_sql)} WHERE roll_id=%s", tuple(params))
-
-
-def safe_update_roll_full(cur, roll_id: str, paper_type: str, weight: int, new_wh: str, new_loc: str):
-    cols = get_table_cols(cur, "rolls")
-    weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
-
-    set_sql = []
-    params = []
-
-    if paper_col:
-        set_sql.append(f"{paper_col}=%s")
-        params.append(paper_type)
-    if weight_col:
-        set_sql.append(f"{weight_col}=%s")
-        params.append(weight)
-    if wh_col:
-        set_sql.append(f"{wh_col}=%s")
-        params.append(new_wh)
-    if loc_col:
-        set_sql.append(f"{loc_col}=%s")
-        params.append(new_loc)
-
-    if not set_sql:
-        return
-
-    params.append(roll_id)
-    cur.execute(f"UPDATE rolls SET {', '.join(set_sql)} WHERE roll_id=%s", tuple(params))
-
-
 def safe_select_roll(cur, roll_id: str):
-    """
-    Returns a normalized dict: roll_id, paper_type, weight, warehouse, location
-    even if DB uses weight_lbs/sublocation.
-    """
     cols = get_table_cols(cur, "rolls")
     weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
 
     if not all([weight_col, loc_col, wh_col, paper_col]):
-        raise RuntimeError(f"rolls table schema unsupported. cols={sorted(list(cols))}")
+        raise RuntimeError(f"rolls schema unsupported. cols={sorted(list(cols))}")
 
     cur.execute(
         f"""
@@ -233,12 +149,66 @@ def safe_select_roll(cur, roll_id: str):
     return cur.fetchone()
 
 
+def safe_insert_roll(cur, roll_id: str, paper_type: str, weight: int, warehouse: str, location: str):
+    cols = get_table_cols(cur, "rolls")
+    weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
+
+    if not all([paper_col, weight_col, wh_col, loc_col]):
+        raise RuntimeError(f"rolls schema unsupported. cols={sorted(list(cols))}")
+
+    q = f"""
+        INSERT INTO rolls (roll_id, {paper_col}, {weight_col}, {wh_col}, {loc_col})
+        VALUES (%s,%s,%s,%s,%s)
+    """
+    cur.execute(q, (roll_id, paper_type, weight, warehouse, location))
+
+
+def safe_update_roll_location(cur, roll_id: str, new_wh: str, new_loc: str):
+    cols = get_table_cols(cur, "rolls")
+    weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
+
+    set_sql = []
+    params = []
+
+    if wh_col:
+        set_sql.append(f"{wh_col}=%s")
+        params.append(new_wh)
+    if loc_col:
+        set_sql.append(f"{loc_col}=%s")
+        params.append(new_loc)
+
+    params.append(roll_id)
+    cur.execute(f"UPDATE rolls SET {', '.join(set_sql)} WHERE roll_id=%s", tuple(params))
+
+
+def safe_update_roll_full(cur, roll_id: str, paper_type: str, weight: int, new_wh: str, new_loc: str):
+    cols = get_table_cols(cur, "rolls")
+    weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
+
+    set_sql = []
+    params = []
+
+    set_sql.append(f"{paper_col}=%s")
+    params.append(paper_type)
+
+    set_sql.append(f"{weight_col}=%s")
+    params.append(weight)
+
+    set_sql.append(f"{wh_col}=%s")
+    params.append(new_wh)
+
+    set_sql.append(f"{loc_col}=%s")
+    params.append(new_loc)
+
+    params.append(roll_id)
+    cur.execute(f"UPDATE rolls SET {', '.join(set_sql)} WHERE roll_id=%s", tuple(params))
+
+
 def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
     # ---- rolls ----
-    # Create if missing (new schema)
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS rolls (
@@ -249,37 +219,31 @@ def init_db():
         """
     )
 
-    # Add columns if they don't exist (new schema)
-    if not col_exists(cur, "rolls", "weight") and not col_exists(cur, "rolls", "weight_lbs"):
+    # make sure at least ONE of each logical field exists
+    if not col_exists(cur, "rolls", "weight_lbs") and not col_exists(cur, "rolls", "weight"):
         cur.execute("ALTER TABLE rolls ADD COLUMN weight_lbs INTEGER;")
-
-    if not col_exists(cur, "rolls", "location") and not col_exists(cur, "rolls", "sublocation"):
+    if not col_exists(cur, "rolls", "sublocation") and not col_exists(cur, "rolls", "location"):
         cur.execute("ALTER TABLE rolls ADD COLUMN sublocation TEXT;")
-
     if not col_exists(cur, "rolls", "warehouse"):
         cur.execute("ALTER TABLE rolls ADD COLUMN warehouse TEXT;")
 
-    # Fill NULLs for whichever columns exist
     cols = get_table_cols(cur, "rolls")
     weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
 
-    if weight_col:
-        cur.execute(f"UPDATE rolls SET {weight_col} = 1 WHERE {weight_col} IS NULL;")
-        cur.execute(f"ALTER TABLE rolls ALTER COLUMN {weight_col} SET NOT NULL;")
+    # fill nulls + set NOT NULL
+    cur.execute(f"UPDATE rolls SET {weight_col}=1 WHERE {weight_col} IS NULL;")
+    cur.execute("UPDATE rolls SET warehouse='WH1' WHERE warehouse IS NULL;")
 
-    if wh_col:
-        cur.execute("UPDATE rolls SET warehouse = 'WH1' WHERE warehouse IS NULL;")
-        cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
+    cur.execute(f"UPDATE rolls SET {loc_col}='02' WHERE {loc_col} IS NULL AND warehouse='WH1';")
+    cur.execute(f"UPDATE rolls SET {loc_col}='20' WHERE {loc_col} IS NULL AND warehouse='WH2';")
+    cur.execute(f"UPDATE rolls SET {loc_col}='USED' WHERE {loc_col} IS NULL AND warehouse='USED';")
+    cur.execute(f"UPDATE rolls SET {loc_col}=COALESCE({loc_col},'02') WHERE {loc_col} IS NULL;")
 
-    if loc_col:
-        # default location by warehouse
-        cur.execute(f"UPDATE rolls SET {loc_col}='02' WHERE {loc_col} IS NULL AND warehouse='WH1';")
-        cur.execute(f"UPDATE rolls SET {loc_col}='20' WHERE {loc_col} IS NULL AND warehouse='WH2';")
-        cur.execute(f"UPDATE rolls SET {loc_col}='USED' WHERE {loc_col} IS NULL AND warehouse='USED';")
-        cur.execute(f"UPDATE rolls SET {loc_col}=COALESCE({loc_col},'02') WHERE {loc_col} IS NULL;")
-        cur.execute(f"ALTER TABLE rolls ALTER COLUMN {loc_col} SET NOT NULL;")
+    cur.execute(f"ALTER TABLE rolls ALTER COLUMN {weight_col} SET NOT NULL;")
+    cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
+    cur.execute(f"ALTER TABLE rolls ALTER COLUMN {loc_col} SET NOT NULL;")
 
-    # ✅ drop legacy constraint that was breaking moves
+    # remove the constraint that is breaking WH/USED moves
     cur.execute(
         """
         DO $$
@@ -291,7 +255,7 @@ def init_db():
         """
     )
 
-    # Keep only the warehouse check (safe)
+    # keep only a safe warehouse check
     cur.execute(
         """
         DO $$
@@ -308,7 +272,6 @@ def init_db():
 
     # ---- movements ----
     cur.execute("CREATE TABLE IF NOT EXISTS movements (id BIGSERIAL PRIMARY KEY);")
-
     for col, ddl in [
         ("roll_id", "ALTER TABLE movements ADD COLUMN roll_id TEXT;"),
         ("action", "ALTER TABLE movements ADD COLUMN action TEXT;"),
@@ -324,10 +287,10 @@ def init_db():
 
     mcols = get_table_cols(cur, "movements")
     if "ts_utc" in mcols:
-        cur.execute("UPDATE movements SET ts_utc = NOW() WHERE ts_utc IS NULL;")
+        cur.execute("UPDATE movements SET ts_utc=NOW() WHERE ts_utc IS NULL;")
         cur.execute("ALTER TABLE movements ALTER COLUMN ts_utc SET DEFAULT NOW();")
     if "moved_at" in mcols:
-        cur.execute("UPDATE movements SET moved_at = NOW() WHERE moved_at IS NULL;")
+        cur.execute("UPDATE movements SET moved_at=NOW() WHERE moved_at IS NULL;")
         cur.execute("ALTER TABLE movements ALTER COLUMN moved_at SET DEFAULT NOW();")
 
     conn.commit()
@@ -441,7 +404,6 @@ def inventory(warehouse):
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # select normalized (works on both schemas)
     cols = get_table_cols(cur, "rolls")
     weight_col, loc_col, wh_col, paper_col = rolls_colmap(cols)
 
@@ -491,7 +453,7 @@ def edit_roll_form(roll_id):
         flash("Roll ID not found.", "error")
         return redirect(url_for("home"))
 
-    # Provide both key names so ANY template version works.
+    # Provide both names for any template version
     r = {
         "roll_id": db_roll["roll_id"],
         "paper_type": db_roll["paper_type"],
@@ -511,12 +473,8 @@ def edit_roll_form(roll_id):
     new_loc = read_form_location()
     new_paper = clean(request.form.get("paper_type"))
 
-    # weight can come from either name; if blank, keep previous
     raw_weight = clean(request.form.get("weight") or request.form.get("weight_lbs") or "")
-    if raw_weight == "":
-        new_weight = db_roll["weight"]
-    else:
-        new_weight = parse_weight(raw_weight)
+    new_weight = db_roll["weight"] if raw_weight == "" else parse_weight(raw_weight)
 
     if new_wh not in ALLOWED_WAREHOUSES:
         cur.close()
@@ -553,7 +511,7 @@ def edit_roll_form(roll_id):
     return redirect(url_for("inventory", warehouse=new_wh))
 
 
-# ========= MOVE TO USED (PC) =========
+# ========= MOVE TO USED (PC button) =========
 @app.route("/to-used/<roll_id>", methods=["POST"])
 @require_login
 def to_used_pc(roll_id):
@@ -600,7 +558,7 @@ def delete_roll_pc(roll_id):
     wh = r["warehouse"]
     loc = r["location"]
 
-    # log BEFORE delete (in case movements has FK -> rolls)
+    # log BEFORE delete (handles FK)
     log_movement(cur, roll_id=roll_id, action="DELETE", from_wh=wh, to_wh=wh, from_loc=loc, to_loc=loc)
     cur.execute("DELETE FROM rolls WHERE roll_id=%s", (roll_id,))
 
@@ -627,7 +585,7 @@ def transfer_form(from_wh, to_wh):
         return render_template("transfer.html", from_wh=from_wh, to_wh=to_wh, locations=locations_for(to_wh))
 
     roll_id = clean(request.form.get("roll_id"))
-    to_loc = read_form_location() or clean(request.form.get("location"))
+    to_loc = read_form_location()
 
     if not roll_id or not to_loc:
         flash("Roll ID and destination Sub-Location are required.", "error")
@@ -662,6 +620,81 @@ def transfer_form(from_wh, to_wh):
 
     flash("Transferred.", "success")
     return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+
+
+# ========= REMOVE (MOVE TO USED) =========
+@app.route("/remove", methods=["GET", "POST"])
+@require_login
+def remove_form():
+    if request.method == "GET":
+        return render_template("remove.html")
+
+    roll_id = clean(request.form.get("roll_id"))
+    if not roll_id:
+        flash("Roll ID required.", "error")
+        return redirect(url_for("remove_form"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    r = safe_select_roll(cur, roll_id)
+    if not r:
+        cur.close()
+        conn.close()
+        flash("Roll ID not found.", "error")
+        return redirect(url_for("remove_form"))
+
+    safe_update_roll_location(cur, roll_id, "USED", "USED")
+    log_movement(cur, roll_id=roll_id, action="REMOVE_TO_USED", from_wh=r["warehouse"], to_wh="USED", from_loc=r["location"], to_loc="USED")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Moved to USED.", "success")
+    return redirect(url_for("remove_form"))
+
+
+# ========= REMOVE BATCH =========
+@app.route("/remove-batch", methods=["GET", "POST"])
+@require_login
+def remove_batch_form():
+    if request.method == "GET":
+        return render_template("remove_batch.html")
+
+    raw = clean(request.form.get("roll_ids"))
+    if not raw:
+        flash("Paste/scan roll IDs first.", "error")
+        return redirect(url_for("remove_batch_form"))
+
+    ids = [x for x in re.split(r"[\s,;]+", raw) if x.strip()]
+    ids = list(dict.fromkeys(ids))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    moved = 0
+    missing = []
+
+    for rid in ids:
+        r = safe_select_roll(cur, rid)
+        if not r:
+            missing.append(rid)
+            continue
+
+        safe_update_roll_location(cur, rid, "USED", "USED")
+        log_movement(cur, roll_id=rid, action="BATCH_REMOVE_TO_USED", from_wh=r["warehouse"], to_wh="USED", from_loc=r["location"], to_loc="USED")
+        moved += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    msg = f"Moved {moved} roll(s) to USED."
+    if missing:
+        msg += f" Missing: {', '.join(missing[:10])}" + ("..." if len(missing) > 10 else "")
+    flash(msg, "success" if moved else "error")
+    return redirect(url_for("remove_batch_form"))
 
 
 # ========= SEARCH =========
