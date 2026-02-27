@@ -1,99 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{ title or "Roll Inventory" }}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Roll Inventory" }}</title>
 
-<style>
-:root{
-  --bg:#f5f7fb; --card:#fff; --text:#111827; --muted:#6b7280;
-  --border:#e5e7eb; --shadow:0 10px 25px rgba(17,24,39,.08);
-  --primary:#2563eb; --primary2:#1d4ed8; --danger:#dc2626;
-  --radius:14px;
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
-.wrap{max-width:1100px;margin:0 auto;padding:20px}
-.header{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
-  gap:12px;position:sticky;top:0;z-index:10;flex-wrap:wrap;
-}
-.brand{display:flex;flex-direction:column;gap:2px}
-.brand .title{font-size:18px;font-weight:900}
-.brand .subtitle{font-size:12px;color:var(--muted);font-weight:700}
-.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.pill{
-  display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:999px;
-  border:1px solid var(--border);background:#fff;color:var(--text);text-decoration:none;font-weight:900;cursor:pointer
-}
-.pill.primary{background:var(--primary);border-color:var(--primary);color:#fff}
-.pill.primary:hover{background:var(--primary2)}
-.pill:hover{transform:translateY(-1px)}
-
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-top:16px}
-
-.btn{
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  padding:12px 14px;border-radius:12px;border:1px solid var(--border);
-  background:#fff;text-decoration:none;color:var(--text);
-  font-weight:900;cursor:pointer;transition:.15s;
-}
-.btn:hover{border-color:#cbd5e1;transform:translateY(-1px)}
-.btn.primary{background:var(--primary);color:#fff;border-color:transparent}
-.btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
-.btn.danger:hover{background:#fee2e2}
-
-label{display:block;margin:12px 0 6px;font-weight:900;font-size:13px}
-input,select,textarea{
-  width:100%;padding:14px;font-size:18px;border-radius:12px;
-  border:1px solid var(--border);background:#fff;outline:none
-}
-input:focus,select:focus,textarea:focus{
-  border-color:#93c5fd;box-shadow:0 0 0 4px rgba(59,130,246,.12)
-}
-
-.flash{margin-top:14px;padding:12px 14px;border-radius:12px;font-weight:900;border:1px solid var(--border);background:#fff}
-.flash.success{border-color:#bbf7d0;background:#ecfdf5;color:#065f46}
-.flash.error{border-color:#fecaca;background:#fef2f2;color:#7f1d1d}
-</style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-<div class="wrap">
-  <div class="header">
-    <div class="brand">
-      <div class="title">{{ title or "Roll Inventory" }}</div>
-      <div class="subtitle">WH1 • WH2 • USED</div>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div class="brand-text">
+          <div class="brand-title">Roll Inventory</div>
+          <div class="brand-sub">Fast scan workflow</div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        {% if session.get("logged_in") %}
+          <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
+          <a class="btn ghost" href="{{ url_for('logout') }}">Logout</a>
+        {% endif %}
+      </div>
     </div>
-    <div class="actions">
-      <a class="pill" href="{{ url_for('home') }}">Home</a>
-      <button class="pill" type="button" onclick="history.back()">Back</button>
-      {% if session.get("logged_in") %}
-        <a class="pill primary" href="{{ url_for('logout') }}">Logout</a>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for cat, msg in messages %}
+            <div class="flash {{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
       {% endif %}
-    </div>
-  </div>
+    {% endwith %}
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="flash {{ category }}">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-  <div class="card">
     {% block content %}{% endblock %}
-  </div>
-</div>
+  </main>
 
-<script>
-window.addEventListener("load", () => {
-  const el = document.querySelector("input:not([type=hidden]):not([readonly]), select, textarea");
-  if(el){ el.focus(); el.select?.(); }
-});
-</script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
