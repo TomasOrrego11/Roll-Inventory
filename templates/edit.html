@@ -2,47 +2,59 @@
 {% set title = "Edit / Move Roll" %}
 {% block content %}
 
-<h3>Edit Roll: {{ r.roll_id }}</h3>
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <div>
+      <h3>Edit / Move — {{ r.roll_id }}</h3>
+      <div class="hint">Enter moves to next field • last field submits</div>
+    </div>
+    <a class="btn ghost" href="{{ url_for('inventory', warehouse=r.warehouse) }}">Back to {{ r.warehouse }}</a>
+  </div>
 
-<form method="post" autocomplete="off">
+  <form method="post" autocomplete="off" data-page="edit" style="margin-top:10px;">
+    <div class="grid2">
+      <div>
+        <label>Paper Type</label>
+        <input name="paper_type" value="{{ r.paper_type }}" required>
+      </div>
 
-  <label>Paper Type</label>
-  <input name="paper_type" value="{{ r.paper_type }}" required>
+      <div>
+        <label>Weight (lbs)</label>
+        <input name="weight" value="{{ r.weight }}" inputmode="numeric" required>
+      </div>
 
-  <label>Weight (lbs)</label>
-  <!-- No required: if you leave blank, backend keeps current weight -->
-  <input name="weight" value="{{ r.weight }}" inputmode="numeric">
+      <div>
+        <label>Warehouse</label>
+        <select name="warehouse" id="warehouse" required>
+          {% for w in warehouses %}
+            <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-  <label>Warehouse</label>
-  <select name="warehouse" id="warehouse" required>
-    {% for w in warehouses %}
-      <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ w }}</option>
-    {% endfor %}
-  </select>
+      <div>
+        <label>Sublocation</label>
+        <select name="location" id="location" required></select>
+      </div>
+    </div>
 
-  <label>Sublocation</label>
-  <select name="location" id="location" required></select>
+    <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+      <button class="btn primary" type="submit">Save Changes</button>
+      <form method="post" action="{{ url_for('remove_roll_pc', roll_id=r.roll_id) }}"
+            onsubmit="return confirm('Move to USED?');" style="margin:0;">
+        <button class="btn" type="submit">→ USED</button>
+      </form>
+    </div>
+  </form>
 
-  <br><br>
+  <hr style="margin:22px 0; border:none; border-top:1px solid rgba(35,48,66,.9);">
 
-  <button class="btn primary" type="submit">Save Changes</button>
-
-</form>
-
-<hr style="margin:30px 0;">
-
-<form method="post"
-      action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
-      onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
-  <button class="btn danger" type="submit">DELETE THIS ROLL</button>
-</form>
-
-<form method="post"
-      action="{{ url_for('to_used_pc', roll_id=r.roll_id) }}"
-      onsubmit="return confirm('Move this roll to USED?');"
-      style="margin-top: 12px;">
-  <button class="btn" type="submit">MOVE TO USED</button>
-</form>
+  <form method="post"
+        action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
+        onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
+    <button class="btn danger" type="submit">DELETE THIS ROLL</button>
+  </form>
+</div>
 
 <script>
 const wh1 = {{ locations_for('WH1')|tojson }};
@@ -55,7 +67,7 @@ const currentLoc = "{{ r.location }}";
 const whEl = document.getElementById("warehouse");
 const locEl = document.getElementById("location");
 
-function fillLocations(wh, selected=null){
+function fillLocations(wh, selected){
   locEl.innerHTML = "";
 
   let list = [];
@@ -67,13 +79,17 @@ function fillLocations(wh, selected=null){
     const opt = document.createElement("option");
     opt.value = v;
     opt.textContent = v;
-    if(v === (selected || currentLoc)) opt.selected = true;
+    if(v === selected) opt.selected = true;
     locEl.appendChild(opt);
   });
+
+  // fallback: if selected not in list, pick first
+  if(!locEl.value && list.length) locEl.value = list[0];
 }
 
 whEl.addEventListener("change", ()=>{
-  fillLocations(whEl.value, null);
+  const wh = whEl.value;
+  fillLocations(wh, (wh === currentWH ? currentLoc : null));
 });
 
 fillLocations(currentWH, currentLoc);
