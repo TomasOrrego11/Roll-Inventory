@@ -1,20 +1,78 @@
 {% extends "base.html" %}
-{% set title = "Transfer " ~ from_wh ~ " → " ~ to_wh %}
+{% set title = "Transfer / Move Roll" %}
 {% block content %}
 
-<form method="POST" action="{{ url_for('transfer_form', from_wh=from_wh, to_wh=to_wh) }}">
-  <label>Destination Sub-Location ({{ to_wh }})</label>
-  <select name="location" id="location" required>
-    <option value="" disabled selected>Select…</option>
-    {% for loc in locations %}
-      <option value="{{ loc }}">{{ loc }}</option>
-    {% endfor %}
-  </select>
+<div class="card">
+  <h3>Transfer / Move Roll</h3>
+  <p class="hint" style="margin-bottom:14px;">
+    You can transfer between warehouses or move to another location inside the same warehouse.
+  </p>
 
-  <label>Roll ID (scan)</label>
-  <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
+  <form method="POST" id="transferForm">
+    <label>From Warehouse</label>
+    <select name="from_wh" id="from_wh" required>
+      {% for w in warehouses %}
+        <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ w }}</option>
+      {% endfor %}
+    </select>
 
-  <button class="btn primary" type="submit">Transfer</button>
-</form>
+    <label>To Warehouse</label>
+    <select name="to_wh" id="to_wh" required>
+      {% for w in warehouses %}
+        <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ w }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Destination Sub-Location</label>
+    <select name="location" id="location" required></select>
+
+    <label>Roll ID (scan)</label>
+    <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <button class="btn primary" type="submit">Move / Transfer</button>
+      <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  const wh1 = {{ locations_for('WH1')|tojson }};
+  const wh2 = {{ locations_for('WH2')|tojson }};
+
+  const fromWhEl = document.getElementById("from_wh");
+  const toWhEl = document.getElementById("to_wh");
+  const locEl = document.getElementById("location");
+  const formEl = document.getElementById("transferForm");
+  const rollEl = document.getElementById("roll_id");
+
+  function fillLocations(wh) {
+    locEl.innerHTML = "";
+    let list = [];
+
+    if (wh === "WH1") list = wh1;
+    if (wh === "WH2") list = wh2;
+
+    list.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      locEl.appendChild(opt);
+    });
+  }
+
+  toWhEl.addEventListener("change", () => {
+    fillLocations(toWhEl.value);
+    setTimeout(() => rollEl.focus(), 50);
+  });
+
+  formEl.addEventListener("submit", () => {
+    const fromWh = fromWhEl.value;
+    const toWh = toWhEl.value;
+    formEl.action = `/transfer/${fromWh}/${toWh}`;
+  });
+
+  fillLocations(toWhEl.value);
+</script>
 
 {% endblock %}
