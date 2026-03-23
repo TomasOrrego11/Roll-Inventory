@@ -15,7 +15,7 @@ APP_PASS = os.environ.get("APP_PASS", "mittera")
 
 WH_LOCATIONS = {
     "WH1": ["02", "03", "04", "05", "06", "07", "08", "09", "10", "12", "16", "17", "18", "19"],
-    "WH2": [str(n) for n in range(20, 31)],  # 20..30
+    "WH2": [str(n) for n in range(20, 31)],
     "USED": ["USED"],
 }
 ALLOWED_WAREHOUSES = ("WH1", "WH2", "USED")
@@ -41,6 +41,11 @@ def parse_weight(s: str):
         return w if w > 0 else None
     except Exception:
         return None
+
+
+def looks_like_scanned_weight(roll_id: str) -> bool:
+    # block ONLY 4-digit numeric values; 5-digit IDs are allowed
+    return bool(re.fullmatch(r"\d{4}", clean(roll_id)))
 
 
 def get_conn():
@@ -89,13 +94,7 @@ def get_table_cols(cur, table: str) -> set[str]:
     return out
 
 
-# -------------------------
-# rolls schema handling
-# -------------------------
 def rolls_columns(cols: set[str]):
-    """
-    Returns lists so we can write BOTH columns when both exist.
-    """
     paper_col = "paper_type" if "paper_type" in cols else None
     wh_col = "warehouse" if "warehouse" in cols else None
 
@@ -104,16 +103,12 @@ def rolls_columns(cols: set[str]):
         weight_cols.append("weight_lbs")
     if "weight" in cols:
         weight_cols.append("weight")
-    if not weight_cols:
-        weight_cols = []
 
     loc_cols = []
     if "location" in cols:
         loc_cols.append("location")
     if "sublocation" in cols:
         loc_cols.append("sublocation")
-    if not loc_cols:
-        loc_cols = []
 
     created_col = "created_at" if "created_at" in cols else None
     return paper_col, wh_col, weight_cols, loc_cols, created_col
@@ -130,7 +125,6 @@ def read_form_location():
 def log_movement(cur, **fields):
     cols = get_table_cols(cur, "movements")
 
-    # Handle legacy NOT NULL constraints
     if "to_wh" in cols and not fields.get("to_wh"):
         fields["to_wh"] = fields.get("from_wh") or "USED"
     if "to_loc" in cols and not fields.get("to_loc"):
@@ -167,9 +161,7 @@ def safe_select_roll(cur, roll_id: str):
     if not paper_col or not wh_col or not weight_cols or not loc_cols:
         raise RuntimeError(f"rolls schema unsupported. cols={sorted(list(cols))}")
 
-    # prefer weight_lbs if present, else weight
     weight_expr = "COALESCE(weight_lbs, weight)" if ("weight_lbs" in cols and "weight" in cols) else weight_cols[0]
-    # prefer location if present, else sublocation; but coalesce when both exist
     loc_expr = "COALESCE(location, sublocation)" if ("location" in cols and "sublocation" in cols) else loc_cols[0]
 
     cur.execute(
@@ -198,13 +190,11 @@ def safe_insert_roll(cur, roll_id: str, paper_type: str, weight: int, warehouse:
     insert_vals = ["%s", "%s", "%s"]
     params = [roll_id, paper_type, warehouse]
 
-    # write weight into ALL weight columns that exist
     for wc in weight_cols:
         insert_cols.append(wc)
         insert_vals.append("%s")
         params.append(weight)
 
-    # write location into ALL location columns that exist (THIS FIXES YOUR NOT NULL "location")
     for lc in loc_cols:
         insert_cols.append(lc)
         insert_vals.append("%s")
@@ -216,7 +206,7 @@ def safe_insert_roll(cur, roll_id: str, paper_type: str, weight: int, warehouse:
 
 def safe_update_roll_location(cur, roll_id: str, new_wh: str, new_loc: str):
     cols = get_table_cols(cur, "rolls")
-    paper_col, wh_col, weight_cols, loc_cols, _ = rolls_columns(cols)
+    _, wh_col, _, loc_cols, _ = rolls_columns(cols)
 
     set_sql = []
     params = []
@@ -225,7 +215,6 @@ def safe_update_roll_location(cur, roll_id: str, new_wh: str, new_loc: str):
         set_sql.append(f"{wh_col}=%s")
         params.append(new_wh)
 
-    # update ALL location columns that exist
     for lc in loc_cols:
         set_sql.append(f"{lc}=%s")
         params.append(new_loc)
@@ -248,12 +237,10 @@ def safe_update_roll_full(cur, roll_id: str, paper_type: str, weight: int, new_w
         set_sql.append(f"{wh_col}=%s")
         params.append(new_wh)
 
-    # update ALL weight columns that exist
     for wc in weight_cols:
         set_sql.append(f"{wc}=%s")
         params.append(weight)
 
-    # update ALL location columns that exist
     for lc in loc_cols:
         set_sql.append(f"{lc}=%s")
         params.append(new_loc)
@@ -266,7 +253,6 @@ def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # ---- rolls ----
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS rolls (
@@ -277,7 +263,6 @@ def init_db():
         """
     )
 
-    # ensure columns exist (support both legacy/new)
     if not col_exists(cur, "rolls", "warehouse"):
         cur.execute("ALTER TABLE rolls ADD COLUMN warehouse TEXT;")
 
@@ -288,9 +273,8 @@ def init_db():
         cur.execute("ALTER TABLE rolls ADD COLUMN location TEXT;")
 
     cols = get_table_cols(cur, "rolls")
-    paper_col, wh_col, weight_cols, loc_cols, _ = rolls_columns(cols)
+    _, _, weight_cols, loc_cols, _ = rolls_columns(cols)
 
-    # fill nulls for any existing schema
     cur.execute("UPDATE rolls SET warehouse='WH1' WHERE warehouse IS NULL;")
     for wc in weight_cols:
         cur.execute(f"UPDATE rolls SET {wc}=1 WHERE {wc} IS NULL;")
@@ -301,14 +285,12 @@ def init_db():
         cur.execute(f"UPDATE rolls SET {lc}='USED' WHERE {lc} IS NULL AND warehouse='USED';")
         cur.execute(f"UPDATE rolls SET {lc}=COALESCE({lc}, '02') WHERE {lc} IS NULL;")
 
-    # enforce NOT NULL safely (only on columns that exist)
     cur.execute("ALTER TABLE rolls ALTER COLUMN warehouse SET NOT NULL;")
     for wc in weight_cols:
         cur.execute(f"ALTER TABLE rolls ALTER COLUMN {wc} SET NOT NULL;")
     for lc in loc_cols:
         cur.execute(f"ALTER TABLE rolls ALTER COLUMN {lc} SET NOT NULL;")
 
-    # drop the problematic location check if it exists
     cur.execute(
         """
         DO $$
@@ -320,7 +302,6 @@ def init_db():
         """
     )
 
-    # keep warehouse check
     cur.execute(
         """
         DO $$
@@ -335,7 +316,6 @@ def init_db():
         """
     )
 
-    # ---- movements ----
     cur.execute("CREATE TABLE IF NOT EXISTS movements (id BIGSERIAL PRIMARY KEY);")
     for col, ddl in [
         ("roll_id", "ALTER TABLE movements ADD COLUMN roll_id TEXT;"),
@@ -379,7 +359,6 @@ def require_login(f):
     return wrapper
 
 
-# ========= AUTH =========
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
@@ -402,14 +381,12 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ========= HOME =========
 @app.route("/")
 @require_login
 def home():
     return render_template("home.html")
 
 
-# ========= ADD =========
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
 def add_form(warehouse):
@@ -430,6 +407,10 @@ def add_form(warehouse):
 
     if not paper_type or not roll_id or weight is None or not location:
         flash("Paper Type, Roll ID, Weight, and Sub-Location are required.", "error")
+        return redirect(url_for("add_form", warehouse=warehouse))
+
+    if looks_like_scanned_weight(roll_id):
+        flash("Invalid Roll ID: 4-digit numeric values are blocked to avoid scanning weight by mistake.", "error")
         return redirect(url_for("add_form", warehouse=warehouse))
 
     if location not in locs:
@@ -458,7 +439,6 @@ def add_form(warehouse):
     return redirect(url_for("add_form", warehouse=warehouse))
 
 
-# ========= INVENTORY =========
 @app.route("/inventory/<warehouse>")
 @require_login
 def inventory(warehouse):
@@ -507,7 +487,6 @@ def inventory(warehouse):
     return render_template("inventory.html", warehouse=warehouse, rows=rows, totals=totals)
 
 
-# ========= EDIT / MOVE =========
 @app.route("/edit/<roll_id>", methods=["GET", "POST"])
 @require_login
 def edit_roll_form(roll_id):
@@ -581,7 +560,6 @@ def edit_roll_form(roll_id):
     return redirect(url_for("inventory", warehouse=new_wh))
 
 
-# ========= MOVE TO USED =========
 @app.route("/to-used/<roll_id>", methods=["POST"])
 @require_login
 def to_used_pc(roll_id):
@@ -611,7 +589,6 @@ def to_used_pc(roll_id):
     return redirect(url_for("inventory", warehouse=from_wh))
 
 
-# ========= DELETE =========
 @app.route("/delete/<roll_id>", methods=["POST"])
 @require_login
 def delete_roll_pc(roll_id):
@@ -640,30 +617,45 @@ def delete_roll_pc(roll_id):
     return redirect(url_for("inventory", warehouse=wh))
 
 
-# ========= TRANSFER =========
 @app.route("/transfer/<from_wh>/<to_wh>", methods=["GET", "POST"])
 @require_login
 def transfer_form(from_wh, to_wh):
     from_wh = clean(from_wh).upper()
     to_wh = clean(to_wh).upper()
 
-    if from_wh not in ("WH1", "WH2") or to_wh not in ("WH1", "WH2") or from_wh == to_wh:
+    if from_wh not in ("WH1", "WH2") or to_wh not in ("WH1", "WH2"):
         flash("Invalid transfer.", "error")
         return redirect(url_for("home"))
 
     if request.method == "GET":
-        return render_template("transfer.html", from_wh=from_wh, to_wh=to_wh, locations=locations_for(to_wh))
+        return render_template(
+            "transfer.html",
+            from_wh=from_wh,
+            to_wh=to_wh,
+            locations=locations_for(to_wh),
+            warehouses=["WH1", "WH2"]
+        )
 
     roll_id = clean(request.form.get("roll_id"))
+    selected_from_wh = clean(request.form.get("from_wh") or from_wh).upper()
+    selected_to_wh = clean(request.form.get("to_wh") or to_wh).upper()
     to_loc = read_form_location()
+
+    if selected_from_wh not in ("WH1", "WH2") or selected_to_wh not in ("WH1", "WH2"):
+        flash("Invalid warehouse selection.", "error")
+        return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
 
     if not roll_id or not to_loc:
         flash("Roll ID and destination Sub-Location are required.", "error")
-        return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+        return redirect(url_for("transfer_form", from_wh=selected_from_wh, to_wh=selected_to_wh))
 
-    if to_loc not in locations_for(to_wh):
+    if looks_like_scanned_weight(roll_id):
+        flash("Invalid Roll ID: 4-digit numeric values are blocked to avoid scanning weight by mistake.", "error")
+        return redirect(url_for("transfer_form", from_wh=selected_from_wh, to_wh=selected_to_wh))
+
+    if to_loc not in locations_for(selected_to_wh):
         flash("Invalid destination Sub-Location.", "error")
-        return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+        return redirect(url_for("transfer_form", from_wh=selected_from_wh, to_wh=selected_to_wh))
 
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -673,27 +665,36 @@ def transfer_form(from_wh, to_wh):
         cur.close()
         conn.close()
         flash("Roll ID not found.", "error")
-        return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+        return redirect(url_for("transfer_form", from_wh=selected_from_wh, to_wh=selected_to_wh))
 
-    if r["warehouse"] != from_wh:
+    if r["warehouse"] != selected_from_wh:
         cur.close()
         conn.close()
-        flash(f"Roll is not in {from_wh}.", "error")
-        return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+        flash(f"Roll is not in {selected_from_wh}.", "error")
+        return redirect(url_for("transfer_form", from_wh=selected_from_wh, to_wh=selected_to_wh))
 
-    safe_update_roll_location(cur, roll_id, to_wh, to_loc)
-    log_movement(cur, roll_id=roll_id, action="TRANSFER",
-                 from_wh=from_wh, to_wh=to_wh, from_loc=r["location"], to_loc=to_loc)
+    safe_update_roll_location(cur, roll_id, selected_to_wh, to_loc)
+
+    action_name = "MOVE_WITHIN_WH" if selected_from_wh == selected_to_wh else "TRANSFER"
+
+    log_movement(
+        cur,
+        roll_id=roll_id,
+        action=action_name,
+        from_wh=selected_from_wh,
+        to_wh=selected_to_wh,
+        from_loc=r["location"],
+        to_loc=to_loc
+    )
 
     conn.commit()
     cur.close()
     conn.close()
 
-    flash("Transferred.", "success")
-    return redirect(url_for("transfer_form", from_wh=from_wh, to_wh=to_wh))
+    flash("Moved successfully.", "success")
+    return redirect(url_for("inventory", warehouse=selected_to_wh))
 
 
-# ========= REMOVE =========
 @app.route("/remove", methods=["GET", "POST"])
 @require_login
 def remove_form():
@@ -703,6 +704,10 @@ def remove_form():
     roll_id = clean(request.form.get("roll_id"))
     if not roll_id:
         flash("Roll ID required.", "error")
+        return redirect(url_for("remove_form"))
+
+    if looks_like_scanned_weight(roll_id):
+        flash("Invalid Roll ID: 4-digit numeric values are blocked to avoid scanning weight by mistake.", "error")
         return redirect(url_for("remove_form"))
 
     conn = get_conn()
@@ -727,7 +732,6 @@ def remove_form():
     return redirect(url_for("remove_form"))
 
 
-# ========= REMOVE BATCH =========
 @app.route("/remove-batch", methods=["GET", "POST"])
 @require_login
 def remove_batch_form():
@@ -747,8 +751,13 @@ def remove_batch_form():
 
     moved = 0
     missing = []
+    blocked = []
 
     for rid in ids:
+        if looks_like_scanned_weight(rid):
+            blocked.append(rid)
+            continue
+
         r = safe_select_roll(cur, rid)
         if not r:
             missing.append(rid)
@@ -766,11 +775,12 @@ def remove_batch_form():
     msg = f"Moved {moved} roll(s) to USED."
     if missing:
         msg += f" Missing: {', '.join(missing[:10])}" + ("..." if len(missing) > 10 else "")
+    if blocked:
+        msg += f" Blocked as possible weight scan: {', '.join(blocked[:10])}" + ("..." if len(blocked) > 10 else "")
     flash(msg, "success" if moved else "error")
     return redirect(url_for("remove_batch_form"))
 
 
-# ========= SEARCH =========
 @app.route("/search", methods=["GET", "POST"])
 @require_login
 def search():
