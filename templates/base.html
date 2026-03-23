@@ -20,6 +20,7 @@
 
       <div class="topbar-actions">
         {% if session.get("logged_in") %}
+          <button type="button" class="btn ghost" id="fullscreenBtn">Full Screen</button>
           <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
           <a class="btn ghost" href="{{ url_for('logout') }}">Logout</a>
         {% endif %}
@@ -42,5 +43,30 @@
   </main>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+  <script>
+    (function () {
+      const btn = document.getElementById("fullscreenBtn");
+      if (!btn) return;
+
+      function updateText() {
+        btn.textContent = document.fullscreenElement ? "Exit Full Screen" : "Full Screen";
+      }
+
+      btn.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (e) {}
+        updateText();
+      });
+
+      document.addEventListener("fullscreenchange", updateText);
+      updateText();
+    })();
+  </script>
 </body>
 </html>
