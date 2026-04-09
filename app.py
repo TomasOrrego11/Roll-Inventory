@@ -790,7 +790,7 @@ def remove_batch_form():
 @app.route("/search", methods=["GET", "POST"])
 @require_login
 def search():
-    q = clean(request.form.get("q") or request.args.get("q") or "")
+    q = clean(request.values.get("q"))
     rows = []
 
     if q:
@@ -811,7 +811,7 @@ def search():
                    {loc_expr} AS location,
                    {wh_col} AS warehouse
             FROM rolls
-            WHERE {paper_col} ILIKE %s
+            WHERE TRIM({paper_col}) ILIKE %s
             ORDER BY
                 {wh_col},
                 CASE
@@ -824,11 +824,11 @@ def search():
             (f"%{q}%",),
         )
         rows = cur.fetchall() or []
+
         cur.close()
         conn.close()
 
     return render_template("search.html", q=q, rows=rows)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
