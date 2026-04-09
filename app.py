@@ -787,48 +787,85 @@ def remove_batch_form():
     return redirect(url_for("remove_batch_form"))
 
 
-@app.route("/search", methods=["GET", "POST"])
+@app.route("/search", methods=["GET"])
 @require_login
 def search():
-    q = clean(request.values.get("q"))
-    rows = []
+    q = clean(request.args.get("q"))
+    selected = clean(request.args.get("paper"))
+
+    matches = []
+    rolls = []
+    totals = None
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cols = get_table_cols(cur, "rolls")
+    paper_col, wh_col, weight_cols, loc_cols, _ = rolls_columns(cols)
+
+    weight_expr = "COALESCE(weight_lbs, weight)" if ("weight_lbs" in cols and "weight" in cols) else weight_cols[0]
+    loc_expr = "COALESCE(location, sublocation)" if ("location" in cols and "sublocation" in cols) else loc_cols[0]
 
     if q:
-        conn = get_conn()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            f"""
+            SELECT DISTINCT {paper_col} AS paper_type
+            FROM rolls
+            WHERE TRIM({paper_col}) ILIKE %s
+            ORDER BY {paper_col}
+            """,
+            (f"%{q}%",),
+        )
+        matches = cur.fetchall() or []
 
-        cols = get_table_cols(cur, "rolls")
-        paper_col, wh_col, weight_cols, loc_cols, _ = rolls_columns(cols)
-
-        weight_expr = "COALESCE(weight_lbs, weight)" if ("weight_lbs" in cols and "weight" in cols) else weight_cols[0]
-        loc_expr = "COALESCE(location, sublocation)" if ("location" in cols and "sublocation" in cols) else loc_cols[0]
-
+    if selected:
         cur.execute(
             f"""
             SELECT roll_id,
-                   {paper_col} AS paper_type,
-                   {weight_expr} AS weight,
-                   {loc_expr} AS location,
-                   {wh_col} AS warehouse
+                   {wh_col} AS warehouse,
+                   {loc_expr} AS sublocation,
+                   {weight_expr} AS weight_lbs
             FROM rolls
-            WHERE TRIM({paper_col}) ILIKE %s
+            WHERE {paper_col} = %s
             ORDER BY
                 {wh_col},
                 CASE
                     WHEN {loc_expr} ~ '^[0-9]+$' THEN CAST({loc_expr} AS INTEGER)
                     ELSE 999
                 END,
-                {paper_col},
                 roll_id
             """,
-            (f"%{q}%",),
+            (selected,),
         )
-        rows = cur.fetchall() or []
+        rolls = cur.fetchall() or []
 
-        cur.close()
-        conn.close()
+        cur.execute(
+            f"""
+            SELECT
+                COUNT(*) AS cnt,
+                COUNT(*) FILTER (WHERE {wh_col} = 'WH1') AS wh1_cnt,
+                COUNT(*) FILTER (WHERE {wh_col} = 'WH2') AS wh2_cnt,
+                COUNT(*) FILTER (WHERE {wh_col} = 'CONSUMED') AS consumed_cnt,
+                COUNT(*) FILTER (WHERE {wh_col} = 'USED') AS used_cnt,
+                COALESCE(SUM({weight_expr}), 0) AS total_weight
+            FROM rolls
+            WHERE {paper_col} = %s
+            """,
+            (selected,),
+        )
+        totals = cur.fetchone()
 
-    return render_template("search.html", q=q, rows=rows)
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "search.html",
+        q=q,
+        matches=matches,
+        selected=selected,
+        rolls=rolls,
+        totals=totals,
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")))
