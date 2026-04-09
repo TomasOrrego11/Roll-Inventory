@@ -14,8 +14,8 @@ APP_USER = os.environ.get("APP_USER", "warehouse")
 APP_PASS = os.environ.get("APP_PASS", "mittera")
 
 WH_LOCATIONS = {
-    "WH1": ["02", "03", "04", "05", "06", "07", "08", "09", "10", "19"],
-    "WH2": ["27", "28", "30", "31", "32", "37", "38", "39", "40", "42", "43", "44"],
+    "WH1": [str(i).zfill(2) for i in range(1, 21)],
+    "WH2": [str(i).zfill(2) for i in range(21, 51)],
     "USED": ["USED"],
 }
 ALLOWED_WAREHOUSES = ("WH1", "WH2", "USED")
@@ -280,8 +280,8 @@ def init_db():
         cur.execute(f"UPDATE rolls SET {wc}=1 WHERE {wc} IS NULL;")
 
     for lc in loc_cols:
-        cur.execute(f"UPDATE rolls SET {lc}='02' WHERE {lc} IS NULL AND warehouse='WH1';")
-        cur.execute(f"UPDATE rolls SET {lc}='27' WHERE {lc} IS NULL AND warehouse='WH2';")
+        cur.execute(f"UPDATE rolls SET {lc}='01' WHERE {lc} IS NULL AND warehouse='WH1';")
+        cur.execute(f"UPDATE rolls SET {lc}='21' WHERE {lc} IS NULL AND warehouse='WH2';")
         cur.execute(f"UPDATE rolls SET {lc}='USED' WHERE {lc} IS NULL AND warehouse='USED';")
         cur.execute(f"UPDATE rolls SET {lc}=COALESCE({lc}, '02') WHERE {lc} IS NULL;")
 
