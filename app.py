@@ -466,7 +466,7 @@ def inventory(warehouse):
                created_at
         FROM rolls
         WHERE {wh_col}=%s
-        ORDER BY {paper_col}, {loc_expr}, roll_id
+        ORDER BY CAST({loc_expr} AS INTEGER), {paper_col}, roll_id
         """,
         (warehouse,),
     )
@@ -805,7 +805,7 @@ def search():
                    {wh_col} AS warehouse
             FROM rolls
             WHERE {paper_col} ILIKE %s
-            ORDER BY {paper_col}, {wh_col}, {loc_expr}, roll_id
+            ORDER BY {wh_col}, CAST({loc_expr} AS INTEGER), {paper_col}, roll_id
             """,
             (f"%{q}%",),
         )
