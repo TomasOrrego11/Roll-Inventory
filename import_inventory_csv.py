@@ -72,7 +72,7 @@ def main():
                         UPDATE rolls
                         SET paper_type=%s,
                             warehouse=%s,
-                            weight_lbs=%s,
+                            weight=%s,
                             location=%s
                         WHERE roll_id=%s
                         """,
@@ -82,7 +82,7 @@ def main():
                 else:
                     cur.execute(
                         """
-                        INSERT INTO rolls (roll_id, paper_type, warehouse, weight_lbs, location)
+                        INSERT INTO rolls (roll_id, paper_type, warehouse, weight, location)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
                         (roll_id, paper_type, warehouse, weight, location),
