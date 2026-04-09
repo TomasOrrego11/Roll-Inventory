@@ -792,6 +792,7 @@ def remove_batch_form():
 def search():
     q = clean(request.form.get("q") or request.args.get("q") or "")
     rows = []
+
     if q:
         conn = get_conn()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -811,14 +812,14 @@ def search():
                    {wh_col} AS warehouse
             FROM rolls
             WHERE {paper_col} ILIKE %s
-            ORDER BY 
-    {wh_col},
-    CASE 
-        WHEN {loc_expr} ~ '^[0-9]+$' THEN CAST({loc_expr} AS INTEGER)
-        ELSE 999
-    END,
-    {paper_col},
-    roll_id
+            ORDER BY
+                {wh_col},
+                CASE
+                    WHEN {loc_expr} ~ '^[0-9]+$' THEN CAST({loc_expr} AS INTEGER)
+                    ELSE 999
+                END,
+                {paper_col},
+                roll_id
             """,
             (f"%{q}%",),
         )
