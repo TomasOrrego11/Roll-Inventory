@@ -40,7 +40,7 @@
 
     <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
       <button class="btn primary" type="submit">Save Changes</button>
-      <form method="post" action="{{ url_for('remove_roll_pc', roll_id=r.roll_id) }}"
+      <form method="post" action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
             onsubmit="return confirm('Move to USED?');" style="margin:0;">
         <button class="btn" type="submit">→ USED</button>
       </form>
