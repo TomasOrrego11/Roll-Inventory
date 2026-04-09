@@ -4,7 +4,6 @@ import psycopg2
 import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
-
 CSV_FILE = "combined_inventory_import.csv"
 
 
@@ -73,19 +72,20 @@ def main():
                         SET paper_type=%s,
                             warehouse=%s,
                             weight=%s,
+                            weight_lbs=%s,
                             location=%s
                         WHERE roll_id=%s
                         """,
-                        (paper_type, warehouse, weight, location, roll_id),
+                        (paper_type, warehouse, weight, weight, location, roll_id),
                     )
                     updated += 1
                 else:
                     cur.execute(
                         """
-                        INSERT INTO rolls (roll_id, paper_type, warehouse, weight, location)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO rolls (roll_id, paper_type, warehouse, weight, weight_lbs, location)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                         """,
-                        (roll_id, paper_type, warehouse, weight, location),
+                        (roll_id, paper_type, warehouse, weight, weight, location),
                     )
                     inserted += 1
 
@@ -106,7 +106,7 @@ def main():
     print(f"Skipped:  {skipped}")
 
     if errors:
-        print("\\n=== ERRORS ===")
+        print("\n=== ERRORS ===")
         for err in errors[:100]:
             print(err)
         if len(errors) > 100:
