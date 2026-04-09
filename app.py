@@ -790,7 +790,7 @@ def remove_batch_form():
 @app.route("/search", methods=["GET", "POST"])
 @require_login
 def search():
-    q = clean(request.form.get("q")) if request.method == "POST" else ""
+    q = clean(request.form.get("q") or request.args.get("q") or "")
     rows = []
     if q:
         conn = get_conn()
