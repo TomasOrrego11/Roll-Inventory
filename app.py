@@ -592,7 +592,7 @@ def to_used_pc(roll_id):
     conn.close()
 
     flash("Moved to USED.", "success")
-    return redirect(url_for("inventory", warehouse=from_wh))
+    return redirect(url_for("inventory", warehouse=from_wh) + "#inventory-table")
 
 
 @app.route("/delete/<roll_id>", methods=["POST"])
