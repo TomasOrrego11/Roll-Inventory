@@ -565,6 +565,24 @@ def edit_roll_form(roll_id):
     flash("Updated.", "success")
     return redirect(url_for("inventory", warehouse=new_wh))
 
+@app.route("/used/clear", methods=["POST"])
+@require_login
+def clear_used_inventory():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cols = get_table_cols(cur, "rolls")
+    _, wh_col, _, _, _ = rolls_columns(cols)
+
+    cur.execute(f"DELETE FROM rolls WHERE {wh_col} = %s", ("USED",))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("USED inventory cleared.", "success")
+    return redirect(url_for("inventory", warehouse="USED"))
+
 
 @app.route("/to-used/<roll_id>", methods=["POST"])
 @require_login
