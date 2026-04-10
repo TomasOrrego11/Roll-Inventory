@@ -595,6 +595,48 @@ def to_used_pc(roll_id):
     if not r:
         cur.close()
         conn.close()
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return {"ok": False, "error": "Roll ID not found."}, 404
+        flash("Roll ID not found.", "error")
+        return redirect(url_for("home"))
+
+    from_wh = r["warehouse"]
+    from_loc = r["location"]
+    moved_weight = r["weight"]
+
+    safe_update_roll_location(cur, roll_id, "USED", "USED")
+    log_movement(
+        cur,
+        roll_id=roll_id,
+        action="TO_USED_PC",
+        from_wh=from_wh,
+        to_wh="USED",
+        from_loc=from_loc,
+        to_loc="USED"
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return {
+            "ok": True,
+            "roll_id": roll_id,
+            "from_wh": from_wh,
+            "weight": moved_weight
+        }
+
+    flash("Moved to USED.", "success")
+    return redirect(url_for("inventory", warehouse=from_wh) + "#inventory-table")
+    roll_id = clean(roll_id)
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    r = safe_select_roll(cur, roll_id)
+    if not r:
+        cur.close()
+        conn.close()
         flash("Roll ID not found.", "error")
         return redirect(url_for("home"))
 
