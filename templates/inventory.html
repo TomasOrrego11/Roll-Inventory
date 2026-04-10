@@ -7,8 +7,8 @@
     <div>
       <h3>Inventory — {{ warehouse }}</h3>
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
-        <span class="badge ok">Count: {{ totals.cnt }}</span>
-        <span class="badge warn">Total Weight: {{ totals.total_weight }}</span>
+        <span class="badge ok" id="count-badge">Count: {{ totals.cnt }}</span>
+        <span class="badge warn" id="weight-badge">Total Weight: {{ totals.total_weight }}</span>
       </div>
     </div>
 
@@ -42,7 +42,7 @@
       </thead>
       <tbody>
         {% for r in rows %}
-        <tr>
+        <tr data-roll-id="{{ r.roll_id }}" data-weight="{{ r.weight }}">
           <td><strong>{{ r.roll_id }}</strong></td>
           <td>{{ r.paper_type }}</td>
           <td>{{ r.weight }}</td>
@@ -53,7 +53,10 @@
               <a class="btn ghost" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Edit / Move</a>
 
               {% if warehouse != "USED" %}
-              <form method="post" action="{{ url_for('to_used_pc', roll_id=r.roll_id) }}" style="margin:0;">
+              <form method="post"
+                    action="{{ url_for('to_used_pc', roll_id=r.roll_id) }}"
+                    style="margin:0;"
+                    class="to-used-form">
                 <button class="btn" type="submit">→ USED</button>
               </form>
               {% endif %}
@@ -67,7 +70,7 @@
         </tr>
         {% endfor %}
         {% if not rows %}
-        <tr>
+        <tr id="empty-row">
           <td colspan="6" class="hint" style="padding:16px;">No rolls in {{ warehouse }}.</td>
         </tr>
         {% endif %}
@@ -78,15 +81,66 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    const savedY = sessionStorage.getItem("inventoryScrollY");
-    if (savedY !== null) {
-      window.scrollTo(0, parseInt(savedY, 10));
-      sessionStorage.removeItem("inventoryScrollY");
+    const countBadge = document.getElementById("count-badge");
+    const weightBadge = document.getElementById("weight-badge");
+
+    function getCurrentCount() {
+      const match = countBadge.textContent.match(/Count:\s*(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
     }
 
-    document.querySelectorAll('form[action*="/to-used/"]').forEach(form => {
-      form.addEventListener("submit", function () {
-        sessionStorage.setItem("inventoryScrollY", window.scrollY);
+    function getCurrentWeight() {
+      const match = weightBadge.textContent.match(/Total Weight:\s*(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    }
+
+    document.querySelectorAll(".to-used-form").forEach(form => {
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const row = form.closest("tr");
+        const weight = parseInt(row.dataset.weight || "0", 10);
+        const button = form.querySelector("button");
+
+        button.disabled = true;
+        button.textContent = "Moving...";
+
+        try {
+          const response = await fetch(form.action, {
+            method: "POST",
+            headers: {
+              "X-Requested-With": "XMLHttpRequest"
+            }
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.ok) {
+            throw new Error(data.error || "Failed to move roll.");
+          }
+
+          row.remove();
+
+          const newCount = Math.max(0, getCurrentCount() - 1);
+          const newWeight = Math.max(0, getCurrentWeight() - weight);
+
+          countBadge.textContent = `Count: ${newCount}`;
+          weightBadge.textContent = `Total Weight: ${newWeight}`;
+
+          const tbody = document.querySelector("#inventory-table tbody");
+          const remainingRows = tbody.querySelectorAll("tr[data-roll-id]");
+
+          if (remainingRows.length === 0 && !document.getElementById("empty-row")) {
+            const emptyRow = document.createElement("tr");
+            emptyRow.id = "empty-row";
+            emptyRow.innerHTML = `<td colspan="6" class="hint" style="padding:16px;">No rolls in {{ warehouse }}.</td>`;
+            tbody.appendChild(emptyRow);
+          }
+        } catch (err) {
+          button.disabled = false;
+          button.textContent = "→ USED";
+          alert(err.message || "Error moving roll to USED.");
+        }
       });
     });
   });
