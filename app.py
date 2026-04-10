@@ -584,7 +584,7 @@ def clear_used_inventory():
     return redirect(url_for("inventory", warehouse="USED"))
 
 
-@app.route("/to-used/<roll_id>", methods=["POST"])
+@app.route("/to-used/<path:roll_id>", methods=["POST"])
 @require_login
 def to_used_pc(roll_id):
     roll_id = clean(roll_id)
