@@ -76,4 +76,20 @@
   </div>
 </div>
 
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const savedY = sessionStorage.getItem("inventoryScrollY");
+    if (savedY !== null) {
+      window.scrollTo(0, parseInt(savedY, 10));
+      sessionStorage.removeItem("inventoryScrollY");
+    }
+
+    document.querySelectorAll('form[action*="/to-used/"]').forEach(form => {
+      form.addEventListener("submit", function () {
+        sessionStorage.setItem("inventoryScrollY", window.scrollY);
+      });
+    });
+  });
+</script>
+
 {% endblock %}
