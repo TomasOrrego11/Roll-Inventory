@@ -2,38 +2,55 @@
 {% set title = "Transfer / Move Roll" %}
 {% block content %}
 
-<div class="card">
-  <h3>Transfer / Move Roll</h3>
-  <p class="hint" style="margin-bottom:14px;">
-    You can transfer between warehouses or move to another location inside the same warehouse.
-  </p>
-
-  <form method="POST" id="transferForm">
-    <label>From Warehouse</label>
-    <select name="from_wh" id="from_wh" required>
-      {% for w in warehouses %}
-        <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ w }}</option>
-      {% endfor %}
-    </select>
-
-    <label>To Warehouse</label>
-    <select name="to_wh" id="to_wh" required>
-      {% for w in warehouses %}
-        <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ w }}</option>
-      {% endfor %}
-    </select>
-
-    <label>Destination Sub-Location</label>
-    <select name="location" id="location" required></select>
-
-    <label>Roll ID (scan)</label>
-    <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
-
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
-      <button class="btn primary" type="submit">Move / Transfer</button>
-      <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">INTERNAL MOVEMENT</div>
+        <h2 class="section-title">Transfer / Move Roll</h2>
+        <p class="hint" style="margin-top:10px;">
+          You can transfer rolls between warehouses or move them to another sub-location inside the same warehouse.
+        </p>
+      </div>
     </div>
-  </form>
+
+    <form method="POST" id="transferForm" style="margin-top:14px;">
+      <div class="grid2">
+        <div>
+          <label>From Warehouse</label>
+          <select name="from_wh" id="from_wh" required>
+            {% for w in warehouses %}
+              <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>To Warehouse</label>
+          <select name="to_wh" id="to_wh" required>
+            {% for w in warehouses %}
+              <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>Destination Sub-Location</label>
+          <select name="location" id="location" required></select>
+        </div>
+
+        <div>
+          <label>Roll ID (scan)</label>
+          <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">Move / Transfer</button>
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
