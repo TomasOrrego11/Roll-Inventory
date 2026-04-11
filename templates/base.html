@@ -3,18 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or "Roll Inventory" }}</title>
+  <title>{{ title or "Mittera Inventory" }}</title>
 
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <div class="page-shell"></div>
+
   <header class="topbar">
     <div class="container topbar-inner">
       <div class="brand">
-        <div class="brand-dot"></div>
+        <div class="brand-mark-wrap">
+          <img
+            src="{{ url_for('static', filename='images/mittera-logo.png') }}"
+            alt="Mittera Group"
+            class="brand-logo"
+            onerror="this.style.display='none'; this.parentElement.classList.add('fallback');"
+          >
+          <div class="brand-fallback-mark" aria-hidden="true"></div>
+        </div>
+
         <div class="brand-text">
-          <div class="brand-title">Roll Inventory</div>
-          <div class="brand-sub">Fast scan workflow</div>
+          <div class="brand-title-row">
+            <div class="brand-title">Mittera Inventory</div>
+            <span class="brand-pill">GROUP</span>
+          </div>
+          <div class="brand-sub">Industrial roll management platform</div>
         </div>
       </div>
 
@@ -28,7 +42,7 @@
     </div>
   </header>
 
-  <main class="container">
+  <main class="container main-container">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flash-wrap">
