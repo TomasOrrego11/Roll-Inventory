@@ -1,26 +1,51 @@
 {% extends "base.html" %}
 {% set title = "Restore Roll" %}
 {% block content %}
-<a class="btn inline" href="{{ url_for('home') }}">Back</a>
 
-<h3>Restore Roll: {{ roll.roll_id }}</h3>
-<p class="muted">Current location: <b>{{ roll.warehouse }}</b></p>
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">RECOVERY</div>
+        <h3>Restore Roll: {{ roll.roll_id }}</h3>
+        <p class="muted" style="margin-top:8px;">
+          Current location: <b>{{ roll.warehouse }}</b>
+        </p>
+      </div>
 
-<form method="post" autocomplete="off">
-  <label>Restore to Warehouse</label>
-  <select name="warehouse" id="warehouse" required>
-    <option value="WH1">WH1</option>
-    <option value="WH2">WH2</option>
-  </select>
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </div>
 
-  <label>Sublocation</label>
-  <select name="sublocation" id="sublocation" required></select>
+    <form method="post" autocomplete="off" style="margin-top:14px;">
+      <div class="grid2">
+        <div>
+          <label>Restore to Warehouse</label>
+          <select name="warehouse" id="warehouse" required>
+            <option value="WH1">WH1</option>
+            <option value="WH2">WH2</option>
+          </select>
+        </div>
 
-  <button class="btn" type="submit"
-    onclick="return confirm('Restore {{ roll.roll_id }} to the selected warehouse/sublocation?');">
-    Restore
-  </button>
-</form>
+        <div>
+          <label>Sublocation</label>
+          <select name="sublocation" id="sublocation" required></select>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button
+          class="btn primary"
+          type="submit"
+          onclick="return confirm('Restore {{ roll.roll_id }} to the selected warehouse/sublocation?');"
+        >
+          Restore
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
   const wh1 = {{ wh1_sublocs|tojson }};
@@ -49,7 +74,7 @@
     else fill(wh2);
   });
 
-  // initial
   fill(wh1);
 </script>
+
 {% endblock %}
