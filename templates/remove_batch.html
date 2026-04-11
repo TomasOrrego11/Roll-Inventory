@@ -1,15 +1,30 @@
-<!-- =========================
-templates/remove_batch.html  (CREAR ESTE ARCHIVO)
-========================= -->
 {% extends "base.html" %}
 {% set title = "Batch Remove → USED" %}
 {% block content %}
 
-<form method="POST" action="{{ url_for('remove_batch_form') }}">
-  <label>Scan many Roll IDs (one per line)</label>
-  <textarea name="roll_ids" id="roll_ids" required placeholder="Scan IDs here..."></textarea>
-  <button class="btn" type="submit">OK → Move all to USED</button>
-</form>
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">USED WORKFLOW</div>
+        <h2 class="section-title">Batch Remove → USED</h2>
+        <p class="hint" style="margin-top:10px;">
+          Scan multiple Roll IDs, one per line, then submit them together.
+        </p>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('remove_batch_form') }}" style="margin-top:14px;">
+      <label>Scan many Roll IDs (one per line)</label>
+      <textarea name="roll_ids" id="roll_ids" required placeholder="Scan IDs here..."></textarea>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">OK → Move all to USED</button>
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
   window.addEventListener("load", () => {
