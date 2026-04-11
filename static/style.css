@@ -776,3 +776,50 @@ form + form{
     padding-top:18px;
   }
 }
+.panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.panel-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.stats-row{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.form-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.results-list{
+  margin:0;
+  padding-left:20px;
+}
+
+.results-list li{
+  margin:8px 0;
+}
+
+.result-link{
+  color:#cfe2ff;
+  text-decoration:none;
+  font-weight:700;
+}
+
+.result-link:hover{
+  color:#ffffff;
+  text-decoration:underline;
+}
