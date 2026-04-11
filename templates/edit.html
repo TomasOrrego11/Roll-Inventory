@@ -2,58 +2,70 @@
 {% set title = "Edit / Move Roll" %}
 {% block content %}
 
-<div class="card">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-    <div>
-      <h3>Edit / Move — {{ r.roll_id }}</h3>
-      <div class="hint">Enter moves to next field • last field submits</div>
-    </div>
-    <a class="btn ghost" href="{{ url_for('inventory', warehouse=r.warehouse) }}">Back to {{ r.warehouse }}</a>
-  </div>
-
-  <form method="post" autocomplete="off" data-page="edit" style="margin-top:10px;">
-    <div class="grid2">
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
       <div>
-        <label>Paper Type</label>
-        <input name="paper_type" value="{{ r.paper_type }}" required>
+        <div class="section-kicker">ROLL CONTROL</div>
+        <h3>Edit / Move — {{ r.roll_id }}</h3>
+        <div class="hint" style="margin-top:8px;">
+          Enter moves to the next field and the final field can be submitted quickly in scanner workflow.
+        </div>
       </div>
 
-      <div>
-        <label>Weight (lbs)</label>
-        <input name="weight" value="{{ r.weight }}" inputmode="numeric" required>
-      </div>
-
-      <div>
-        <label>Warehouse</label>
-        <select name="warehouse" id="warehouse" required>
-          {% for w in warehouses %}
-            <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ w }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label>Sublocation</label>
-        <select name="location" id="location" required></select>
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('inventory', warehouse=r.warehouse) }}">Back to {{ r.warehouse }}</a>
       </div>
     </div>
 
-    <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-      <button class="btn primary" type="submit">Save Changes</button>
+    <form method="post" autocomplete="off" data-page="edit" style="margin-top:14px;">
+      <div class="grid2">
+        <div>
+          <label>Paper Type</label>
+          <input name="paper_type" value="{{ r.paper_type }}" required>
+        </div>
+
+        <div>
+          <label>Weight (lbs)</label>
+          <input name="weight" value="{{ r.weight }}" inputmode="numeric" required>
+        </div>
+
+        <div>
+          <label>Warehouse</label>
+          <select name="warehouse" id="warehouse" required>
+            {% for w in warehouses %}
+              <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>Sublocation</label>
+          <select name="location" id="location" required></select>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">Save Changes</button>
+      </div>
+    </form>
+
+    <hr style="margin:22px 0;">
+
+    <div class="row-actions">
       <form method="post" action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
             onsubmit="return confirm('Move to USED?');" style="margin:0;">
         <button class="btn" type="submit">→ USED</button>
       </form>
+
+      <form method="post"
+            action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
+            onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');"
+            style="margin:0;">
+        <button class="btn danger" type="submit">DELETE THIS ROLL</button>
+      </form>
     </div>
-  </form>
-
-  <hr style="margin:22px 0; border:none; border-top:1px solid rgba(35,48,66,.9);">
-
-  <form method="post"
-        action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
-        onsubmit="return confirm('DELETE this roll permanently? This cannot be undone.');">
-    <button class="btn danger" type="submit">DELETE THIS ROLL</button>
-  </form>
+  </div>
 </div>
 
 <script>
@@ -83,7 +95,6 @@ function fillLocations(wh, selected){
     locEl.appendChild(opt);
   });
 
-  // fallback: if selected not in list, pick first
   if(!locEl.value && list.length) locEl.value = list[0];
 }
 
