@@ -1,64 +1,107 @@
 {% extends "base.html" %}
 {% set title = "Search by PaperType" %}
 {% block content %}
-<a class="btn inline" href="{{ url_for('home') }}">Back</a>
 
-<form method="get" autocomplete="off" style="margin-top:10px;">
-  <label>Search PaperType (partial is ok)</label>
-  <input name="q" value="{{ q }}" placeholder="e.g., FSC38" autofocus>
-  <button class="btn" type="submit">Search</button>
-</form>
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">LOOKUP</div>
+        <h3>Search Paper Type</h3>
+        <div class="hint" style="margin-top:8px;">
+          Partial match is supported for faster warehouse lookup.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </div>
+
+    <form method="get" autocomplete="off" style="margin-top:14px;">
+      <label>Search PaperType (partial is ok)</label>
+      <input name="q" value="{{ q }}" placeholder="e.g., FSC38" autofocus>
+      <div class="form-actions" style="margin-top:14px;">
+        <button class="btn primary" type="submit">Search</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 {% if q %}
-  <h3>Matches</h3>
-  {% if matches|length == 0 %}
-    <p class="muted">No PaperType matches found.</p>
-  {% else %}
-    <ul>
-      {% for m in matches %}
-        <li><a href="{{ url_for('search', q=q, paper=m.paper_type) }}">{{ m.paper_type }}</a></li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">MATCHES</div>
+        <h2 class="section-title">Results for "{{ q }}"</h2>
+      </div>
+    </div>
+
+    {% if matches|length == 0 %}
+      <p class="muted">No PaperType matches found.</p>
+    {% else %}
+      <ul class="results-list">
+        {% for m in matches %}
+          <li>
+            <a class="result-link" href="{{ url_for('search', q=q, paper=m.paper_type) }}">{{ m.paper_type }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</div>
 {% endif %}
 
 {% if selected %}
-  <h3>Rolls for PaperType: {{ selected }}</h3>
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">PAPER TYPE DETAIL</div>
+        <h2 class="section-title">Rolls for PaperType: {{ selected }}</h2>
+      </div>
+    </div>
 
-  {% if totals %}
-    <p>
-      <b>Total:</b> {{ totals.cnt }} |
-      <b>WH1:</b> {{ totals.wh1_cnt }} |
-      <b>WH2:</b> {{ totals.wh2_cnt }} |
-      <b>CONSUMED:</b> {{ totals.consumed_cnt }} |
-      <b>USED:</b> {{ totals.used_cnt }} |
-      <b>Total lbs:</b> {{ totals.total_weight }}
-    </p>
-  {% endif %}
+    {% if totals %}
+      <div class="stats-row" style="margin-bottom:16px;">
+        <span class="badge">Total: {{ totals.cnt }}</span>
+        <span class="badge">WH1: {{ totals.wh1_cnt }}</span>
+        <span class="badge">WH2: {{ totals.wh2_cnt }}</span>
+        <span class="badge">CONSUMED: {{ totals.consumed_cnt }}</span>
+        <span class="badge">USED: {{ totals.used_cnt }}</span>
+        <span class="badge warn">Total lbs: {{ totals.total_weight }}</span>
+      </div>
+    {% endif %}
 
-  {% if rolls|length == 0 %}
-    <p class="muted">No rolls found for this PaperType.</p>
-  {% else %}
-    <table>
-      <thead>
-        <tr>
-          <th>RollID</th>
-          <th>Warehouse</th>
-          <th>Subloc</th>
-          <th>Weight (lbs)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rolls %}
-          <tr>
-            <td>{{ r.roll_id }}</td>
-            <td>{{ r.warehouse }}</td>
-            <td>{{ r.sublocation }}</td>
-            <td>{{ r.weight_lbs }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% endif %}
+    {% if rolls|length == 0 %}
+      <p class="muted">No rolls found for this PaperType.</p>
+    {% else %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>RollID</th>
+              <th>Warehouse</th>
+              <th>Subloc</th>
+              <th>Weight (lbs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rolls %}
+              <tr>
+                <td>{{ r.roll_id }}</td>
+                <td>{{ r.warehouse }}</td>
+                <td>{{ r.sublocation }}</td>
+                <td>{{ r.weight_lbs }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</div>
 {% endif %}
+
 {% endblock %}
