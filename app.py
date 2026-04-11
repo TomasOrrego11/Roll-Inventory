@@ -361,6 +361,31 @@ def require_login(f):
         return f(*args, **kwargs)
     return wrapper
 
+def current_role():
+    return session.get("role", "")
+
+def can_write():
+    return current_role() == "admin"
+
+def is_guest():
+    return current_role() == "guest"
+
+app.jinja_env.globals["can_write"] = can_write
+app.jinja_env.globals["is_guest"] = is_guest
+app.jinja_env.globals["current_role"] = current_role
+
+def require_write(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+
+        if not can_write():
+            flash("Read-only account. You do not have permission to modify inventory.", "error")
+            return redirect(url_for("home"))
+
+        return f(*args, **kwargs)
+    return wrapper
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
