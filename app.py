@@ -396,7 +396,17 @@ def login():
     p = clean(request.form.get("password"))
 
     if u == APP_USER and p == APP_PASS:
+        session.clear()
         session["logged_in"] = True
+        session["username"] = APP_USER
+        session["role"] = "admin"
+        return redirect(url_for("home"))
+
+    if u == GUEST_USER and p == GUEST_PASS:
+        session.clear()
+        session["logged_in"] = True
+        session["username"] = GUEST_USER
+        session["role"] = "guest"
         return redirect(url_for("home"))
 
     flash("Invalid credentials.", "error")
