@@ -1,13 +1,27 @@
 {% extends "base.html" %}
 {% set title = "Login" %}
 {% block content %}
-<form method="post" autocomplete="off">
-  <label>Username</label>
-  <input name="username" autofocus>
 
-  <label>Password</label>
-  <input name="password" type="password">
+<div class="login-shell">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="eyebrow">SECURE ACCESS</div>
+      <h1 class="login-title">Sign in to Mittera Inventory</h1>
+      <p class="login-text">
+        Authorized access for warehouse operations, inventory control and scanner workflow.
+      </p>
+    </div>
 
-  <button class="btn" type="submit">Login</button>
-</form>
+    <form method="post" autocomplete="off" class="login-form">
+      <label>Username</label>
+      <input name="username" autofocus>
+
+      <label>Password</label>
+      <input name="password" type="password">
+
+      <button class="btn primary login-btn" type="submit">Login</button>
+    </form>
+  </div>
+</div>
+
 {% endblock %}
