@@ -2,48 +2,58 @@
 {% set title = "Add Roll - " ~ warehouse %}
 {% block content %}
 
-<div class="card">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-    <div>
-      <h3>Add Roll — {{ warehouse }}</h3>
-      <div class="hint">Scan fast: Enter jumps field-to-field. Location stays saved until you change it.</div>
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">ROLL INTAKE</div>
+        <h3>Add Roll — {{ warehouse }}</h3>
+        <div class="hint" style="margin-top:8px;">
+          Fast scanner workflow. Enter moves field-to-field and the selected sub-location stays saved until changed.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('inventory', warehouse=warehouse) }}">View {{ warehouse }}</a>
+      </div>
     </div>
-    <a class="btn ghost" href="{{ url_for('inventory', warehouse=warehouse) }}">View {{ warehouse }}</a>
+
+    <form method="post" autocomplete="off" data-page="add" data-warehouse="{{ warehouse }}" style="margin-top:14px;">
+      <div class="grid2">
+        <div>
+          <label>Paper Type</label>
+          <input name="paper_type" placeholder="e.g. 80SOMRECSFI18" required>
+        </div>
+
+        <div>
+          <label>Roll ID</label>
+          <input name="roll_id" placeholder="Scan / type roll id" required>
+        </div>
+
+        <div>
+          <label>Weight (lbs)</label>
+          <input name="weight" inputmode="numeric" placeholder="e.g. 1341" required>
+        </div>
+
+        <div>
+          <label>Sub-Location (saved)</label>
+          <select name="location" required>
+            {% for l in locations %}
+              <option value="{{ l }}">{{ l }}</option>
+            {% endfor %}
+          </select>
+          <div class="hint" style="margin-top:6px;">
+            Tip: change location once, then keep scanning rolls.
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">Add Roll</button>
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </form>
   </div>
-
-  <form method="post" autocomplete="off" data-page="add" data-warehouse="{{ warehouse }}">
-    <div class="grid2" style="margin-top:10px;">
-      <div>
-        <label>Paper Type</label>
-        <input name="paper_type" placeholder="e.g. 80SOMRECSFI18" required>
-      </div>
-
-      <div>
-        <label>Roll ID</label>
-        <input name="roll_id" placeholder="Scan / type roll id" required>
-      </div>
-
-      <div>
-        <label>Weight (lbs)</label>
-        <input name="weight" inputmode="numeric" placeholder="e.g. 1341" required>
-      </div>
-
-      <div>
-        <label>Sub-Location (saved)</label>
-        <select name="location" required>
-          {% for l in locations %}
-            <option value="{{ l }}">{{ l }}</option>
-          {% endfor %}
-        </select>
-        <div class="hint" style="margin-top:6px;">Tip: change location once, then keep scanning rolls.</div>
-      </div>
-    </div>
-
-    <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-      <button class="btn primary" type="submit">Add Roll</button>
-      <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
-    </div>
-  </form>
 </div>
 
 {% endblock %}
