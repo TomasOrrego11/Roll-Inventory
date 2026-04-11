@@ -15,12 +15,21 @@
         <div class="stats-row" style="margin-top:12px;">
           <span class="badge ok" id="count-badge">Count: {{ totals.cnt }}</span>
           <span class="badge warn" id="weight-badge">Total Weight: {{ totals.total_weight }}</span>
+          {% if not can_write() %}
+            <span class="badge">Read Only</span>
+          {% endif %}
         </div>
       </div>
 
       <div class="panel-actions">
         {% if warehouse in ["WH1","WH2"] %}
-          <a class="btn primary" href="{{ url_for('add_form', warehouse=warehouse) }}">Add to {{ warehouse }}</a>
+          <a
+            class="btn primary {% if not can_write() %}disabled-btn{% endif %}"
+            href="{% if can_write() %}{{ url_for('add_form', warehouse=warehouse) }}{% else %}#{% endif %}"
+            {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+          >
+            Add to {{ warehouse }}
+          </a>
         {% endif %}
         <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
       </div>
@@ -29,11 +38,13 @@
     {% if warehouse == "USED" %}
     <form
       method="post"
-      action="{{ url_for('clear_used_inventory') }}"
-      onsubmit="return confirm('Delete ALL rolls in USED?');"
+      action="{% if can_write() %}{{ url_for('clear_used_inventory') }}{% else %}#{% endif %}"
+      onsubmit="{% if can_write() %}return confirm('Delete ALL rolls in USED?');{% else %}return false;{% endif %}"
       style="margin: 16px 0 0 0;"
     >
-      <button class="btn danger" type="submit">Clear USED Inventory</button>
+      <button class="btn danger {% if not can_write() %}disabled-btn{% endif %}" type="submit">
+        Clear USED Inventory
+      </button>
     </form>
     {% endif %}
   </div>
@@ -70,26 +81,35 @@
             <td>{{ r.location }}</td>
             <td>
               <div class="row-actions">
-                <a class="btn ghost" href="{{ url_for('edit_roll_form', roll_id=r.roll_id) }}">Edit / Move</a>
+                <a
+                  class="btn ghost {% if not can_write() %}disabled-btn{% endif %}"
+                  href="{% if can_write() %}{{ url_for('edit_roll_form', roll_id=r.roll_id) }}{% else %}#{% endif %}"
+                  {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+                >
+                  Edit / Move
+                </a>
 
                 {% if warehouse != "USED" %}
                 <form
                   method="post"
-                  action="{{ url_for('to_used_pc', roll_id=r.roll_id) }}"
+                  action="{% if can_write() %}{{ url_for('to_used_pc', roll_id=r.roll_id) }}{% else %}#{% endif %}"
                   style="margin:0;"
-                  class="to-used-form"
+                  class="{% if can_write() %}to-used-form{% endif %}"
+                  onsubmit="{% if can_write() %}return true;{% else %}return false;{% endif %}"
                 >
-                  <button class="btn" type="submit">→ USED</button>
+                  <button class="btn {% if not can_write() %}disabled-btn{% endif %}" type="submit">→ USED</button>
                 </form>
                 {% endif %}
 
                 <form
                   method="post"
-                  action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
-                  onsubmit="return confirm('DELETE permanently? This cannot be undone.');"
+                  action="{% if can_write() %}{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}{% else %}#{% endif %}"
+                  onsubmit="{% if can_write() %}return confirm('DELETE permanently? This cannot be undone.');{% else %}return false;{% endif %}"
                   style="margin:0;"
                 >
-                  <button class="btn danger" type="submit">DELETE</button>
+                  <button class="btn danger {% if not can_write() %}disabled-btn{% endif %}" type="submit">
+                    DELETE
+                  </button>
                 </form>
               </div>
             </td>
