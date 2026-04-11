@@ -1,31 +1,121 @@
 {% extends "base.html" %}
-{% set title = "Roll Inventory" %}
+{% set title = "Mittera Inventory" %}
 {% block content %}
 
-<div class="grid2">
-  <div>
-    <a class="btn primary" href="{{ url_for('add_form', warehouse='WH1') }}">Add to WH1 <span class="hint">Warehouse 1</span></a>
-    <a class="btn primary" href="{{ url_for('add_form', warehouse='WH2') }}">Add to WH2 <span class="hint">Warehouse 2</span></a>
-    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}">Transfer <span class="hint">WH1 → WH2</span></a>
-    <a class="btn" href="{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}">Transfer <span class="hint">WH2 → WH1</span></a>
+<div class="hero-card">
+  <div class="hero-copy">
+    <div class="eyebrow">MITTERA GROUP</div>
+    <h1 class="hero-title">Roll Inventory Control Center</h1>
+    <p class="hero-text">
+      Fast operational access for adding, transferring, removing and locating rolls across warehouse locations.
+    </p>
   </div>
 
-  <div>
-    <a class="btn" href="{{ url_for('remove_form') }}">Remove Roll <span class="hint">→ USED</span></a>
-    <a class="btn" href="{{ url_for('remove_batch_form') }}">Batch Remove <span class="hint">many scans</span></a>
-    <a class="btn" href="{{ url_for('search') }}">Search <span class="hint">paper type</span></a>
+  <div class="hero-metrics">
+    <div class="metric-card">
+      <div class="metric-label">System Mode</div>
+      <div class="metric-value">Live</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Workflow</div>
+      <div class="metric-value">Scanner Ready</div>
+    </div>
   </div>
 </div>
 
-<hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0;">
-
-<div class="grid2">
-  <div>
-    <a class="btn" href="{{ url_for('inventory', warehouse='WH1') }}">View Inventory <span class="hint">WH1</span></a>
-    <a class="btn" href="{{ url_for('inventory', warehouse='WH2') }}">View Inventory <span class="hint">WH2</span></a>
+<div class="section-block">
+  <div class="section-head">
+    <div>
+      <div class="section-kicker">OPERATIONS</div>
+      <h2 class="section-title">Core actions</h2>
+    </div>
   </div>
-  <div>
-    <a class="btn" href="{{ url_for('inventory', warehouse='USED') }}">View Inventory <span class="hint">USED</span></a>
+
+  <div class="action-grid">
+    <a class="action-tile action-tile-primary" href="{{ url_for('add_form', warehouse='WH1') }}">
+      <div class="action-tile-top">
+        <span class="action-badge">WH1</span>
+      </div>
+      <div class="action-title">Add to Warehouse 1</div>
+      <div class="action-sub">Register new rolls directly into WH1</div>
+    </a>
+
+    <a class="action-tile action-tile-primary" href="{{ url_for('add_form', warehouse='WH2') }}">
+      <div class="action-tile-top">
+        <span class="action-badge">WH2</span>
+      </div>
+      <div class="action-title">Add to Warehouse 2</div>
+      <div class="action-sub">Register new rolls directly into WH2</div>
+    </a>
+
+    <a class="action-tile" href="{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}">
+      <div class="action-tile-top">
+        <span class="action-badge neutral">MOVE</span>
+      </div>
+      <div class="action-title">Transfer WH1 → WH2</div>
+      <div class="action-sub">Relocate inventory between main warehouse sites</div>
+    </a>
+
+    <a class="action-tile" href="{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}">
+      <div class="action-tile-top">
+        <span class="action-badge neutral">MOVE</span>
+      </div>
+      <div class="action-title">Transfer WH2 → WH1</div>
+      <div class="action-sub">Return or reassign inventory to Warehouse 1</div>
+    </a>
+
+    <a class="action-tile" href="{{ url_for('remove_form') }}">
+      <div class="action-tile-top">
+        <span class="action-badge warning">USED</span>
+      </div>
+      <div class="action-title">Remove Roll</div>
+      <div class="action-sub">Move a single roll into USED status</div>
+    </a>
+
+    <a class="action-tile" href="{{ url_for('remove_batch_form') }}">
+      <div class="action-tile-top">
+        <span class="action-badge warning">BATCH</span>
+      </div>
+      <div class="action-title">Batch Remove</div>
+      <div class="action-sub">Move multiple scanned rolls into USED</div>
+    </a>
+
+    <a class="action-tile" href="{{ url_for('search') }}">
+      <div class="action-tile-top">
+        <span class="action-badge neutral">SEARCH</span>
+      </div>
+      <div class="action-title">Search Paper Type</div>
+      <div class="action-sub">Locate rolls by paper type and availability</div>
+    </a>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="section-head">
+    <div>
+      <div class="section-kicker">INVENTORY VIEWS</div>
+      <h2 class="section-title">Warehouse access</h2>
+    </div>
+  </div>
+
+  <div class="inventory-grid">
+    <a class="inventory-panel" href="{{ url_for('inventory', warehouse='WH1') }}">
+      <div class="inventory-panel-code">WH1</div>
+      <div class="inventory-panel-title">Warehouse 1</div>
+      <div class="inventory-panel-sub">Open current live inventory</div>
+    </a>
+
+    <a class="inventory-panel" href="{{ url_for('inventory', warehouse='WH2') }}">
+      <div class="inventory-panel-code">WH2</div>
+      <div class="inventory-panel-title">Warehouse 2</div>
+      <div class="inventory-panel-sub">Open current live inventory</div>
+    </a>
+
+    <a class="inventory-panel used" href="{{ url_for('inventory', warehouse='USED') }}">
+      <div class="inventory-panel-code">USED</div>
+      <div class="inventory-panel-title">Used Inventory</div>
+      <div class="inventory-panel-sub">Review removed rolls and cleanup status</div>
+    </a>
   </div>
 </div>
 
