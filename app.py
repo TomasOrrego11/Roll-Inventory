@@ -427,6 +427,7 @@ def home():
 
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
+@require_write
 def add_form(warehouse):
     warehouse = clean(warehouse).upper()
     if warehouse not in ("WH1", "WH2"):
@@ -533,6 +534,7 @@ def inventory(warehouse):
 
 @app.route("/edit/<roll_id>", methods=["GET", "POST"])
 @require_login
+@require_write
 def edit_roll_form(roll_id):
     roll_id = clean(roll_id)
 
@@ -605,6 +607,7 @@ def edit_roll_form(roll_id):
 
 @app.route("/used/clear", methods=["POST"])
 @require_login
+@require_write
 def clear_used_inventory():
     conn = get_conn()
     cur = conn.cursor()
@@ -624,6 +627,7 @@ def clear_used_inventory():
 
 @app.route("/to-used/<path:roll_id>", methods=["POST"])
 @require_login
+@require_write
 def to_used_pc(roll_id):
     roll_id = clean(roll_id)
     conn = get_conn()
@@ -695,6 +699,7 @@ def to_used_pc(roll_id):
 
 @app.route("/delete/<roll_id>", methods=["POST"])
 @require_login
+@require_write
 def delete_roll_pc(roll_id):
     roll_id = clean(roll_id)
     conn = get_conn()
@@ -723,6 +728,7 @@ def delete_roll_pc(roll_id):
 
 @app.route("/transfer/<from_wh>/<to_wh>", methods=["GET", "POST"])
 @require_login
+@require_write
 def transfer_form(from_wh, to_wh):
     from_wh = clean(from_wh).upper()
     to_wh = clean(to_wh).upper()
@@ -801,6 +807,7 @@ def transfer_form(from_wh, to_wh):
 
 @app.route("/remove", methods=["GET", "POST"])
 @require_login
+@require_write
 def remove_form():
     if request.method == "GET":
         return render_template("remove.html")
@@ -838,6 +845,7 @@ def remove_form():
 
 @app.route("/remove-batch", methods=["GET", "POST"])
 @require_login
+@require_write
 def remove_batch_form():
     if request.method == "GET":
         return render_template("remove_batch.html")
