@@ -13,6 +13,9 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 APP_USER = os.environ.get("APP_USER", "warehouse")
 APP_PASS = os.environ.get("APP_PASS", "mittera")
 
+GUEST_USER = os.environ.get("GUEST_USER", "guest")
+GUEST_PASS = os.environ.get("GUEST_PASS", "mitterapompano")
+
 WH_LOCATIONS = {
     "WH1": [str(i).zfill(2) for i in range(1, 21)],
     "WH2": [str(i).zfill(2) for i in range(21, 51)],
