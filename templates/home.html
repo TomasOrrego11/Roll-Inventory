@@ -18,7 +18,13 @@
     </div>
     <div class="metric-card">
       <div class="metric-label">Workflow</div>
-      <div class="metric-value">Scanner Ready</div>
+      <div class="metric-value">
+        {% if can_write() %}
+          Scanner Ready
+        {% else %}
+          Read Only
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
@@ -32,7 +38,11 @@
   </div>
 
   <div class="action-grid">
-    <a class="action-tile action-tile-primary" href="{{ url_for('add_form', warehouse='WH1') }}">
+    <a
+      class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('add_form', warehouse='WH1') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
       <div class="action-tile-top">
         <span class="action-badge">WH1</span>
       </div>
@@ -40,7 +50,11 @@
       <div class="action-sub">Register new rolls directly into WH1</div>
     </a>
 
-    <a class="action-tile action-tile-primary" href="{{ url_for('add_form', warehouse='WH2') }}">
+    <a
+      class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('add_form', warehouse='WH2') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
       <div class="action-tile-top">
         <span class="action-badge">WH2</span>
       </div>
@@ -48,7 +62,11 @@
       <div class="action-sub">Register new rolls directly into WH2</div>
     </a>
 
-    <a class="action-tile" href="{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}">
+    <a
+      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
       <div class="action-tile-top">
         <span class="action-badge neutral">MOVE</span>
       </div>
@@ -56,7 +74,11 @@
       <div class="action-sub">Relocate inventory between main warehouse sites</div>
     </a>
 
-    <a class="action-tile" href="{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}">
+    <a
+      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
       <div class="action-tile-top">
         <span class="action-badge neutral">MOVE</span>
       </div>
@@ -64,7 +86,11 @@
       <div class="action-sub">Return or reassign inventory to Warehouse 1</div>
     </a>
 
-    <a class="action-tile" href="{{ url_for('remove_form') }}">
+    <a
+      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('remove_form') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
       <div class="action-tile-top">
         <span class="action-badge warning">USED</span>
       </div>
@@ -72,7 +98,11 @@
       <div class="action-sub">Move a single roll into USED status</div>
     </a>
 
-    <a class="action-tile" href="{{ url_for('remove_batch_form') }}">
+    <a
+      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('remove_batch_form') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
       <div class="action-tile-top">
         <span class="action-badge warning">BATCH</span>
       </div>
