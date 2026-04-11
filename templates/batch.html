@@ -1,35 +1,70 @@
 {% extends "base.html" %}
 {% set title = title %}
 {% block content %}
-<a class="btn inline" href="{{ url_for('home') }}">Back</a>
 
-<p class="muted">
-Scan many RollIDs into the box below (ONE per line). Then press OK.
-Your scanner sends ENTER, so each scan becomes a new line automatically.
-</p>
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">BATCH PROCESS</div>
+        <h3>{{ title }}</h3>
+        <p class="muted" style="margin-top:8px;">
+          Scan many RollIDs into the box below, one per line. Your scanner sends ENTER, so each scan becomes a new line automatically.
+        </p>
+      </div>
 
-<form method="post" autocomplete="off">
-  <label>RollIDs (one per line)</label>
-  <textarea name="roll_ids" placeholder="Scan or paste RollIDs here..."></textarea>
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </div>
 
-  <button class="btn" type="submit">OK - Batch Remove → USED</button>
-</form>
+    <form method="post" autocomplete="off" style="margin-top:14px;">
+      <label>RollIDs (one per line)</label>
+      <textarea name="roll_ids" placeholder="Scan or paste RollIDs here..."></textarea>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">OK - Batch Remove → USED</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 {% if results_success %}
-  <h3>Success</h3>
-  <ul>
-    {% for r in results_success %}
-      <li>{{ r }}</li>
-    {% endfor %}
-  </ul>
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">RESULTS</div>
+        <h2 class="section-title">Success</h2>
+      </div>
+    </div>
+
+    <ul>
+      {% for r in results_success %}
+        <li>{{ r }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
 {% endif %}
 
 {% if results_errors %}
-  <h3>Errors</h3>
-  <ul>
-    {% for e in results_errors %}
-      <li>{{ e }}</li>
-    {% endfor %}
-  </ul>
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">RESULTS</div>
+        <h2 class="section-title">Errors</h2>
+      </div>
+    </div>
+
+    <ul>
+      {% for e in results_errors %}
+        <li>{{ e }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
 {% endif %}
+
 {% endblock %}
