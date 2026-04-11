@@ -823,3 +823,16 @@ form + form{
   color:#ffffff;
   text-decoration:underline;
 }
+.disabled-btn,
+.disabled-tile{
+  opacity: .45;
+  pointer-events: none;
+  cursor: not-allowed;
+  filter: grayscale(.15);
+}
+
+.disabled-btn:hover,
+.disabled-tile:hover{
+  transform: none !important;
+  box-shadow: none !important;
+}
