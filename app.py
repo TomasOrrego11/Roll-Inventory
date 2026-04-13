@@ -1178,14 +1178,7 @@ def add_batch_form():
                 continue
 
             try:
-                safe_insert_roll(
-                    cur=cur,
-                    roll_id=roll_id,
-                    paper_type=paper_type,
-                    weight_lbs=weight_lbs,
-                    warehouse=warehouse,
-                    location=location,
-                )
+                safe_insert_roll(cur, roll_id, paper_type, weight_lbs, warehouse, location)
 
                 log_movement(
                     cur,
