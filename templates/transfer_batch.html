@@ -1,90 +1,78 @@
 {% extends "base.html" %}
-{% set title = "Batch Transfer / Move Rolls" %}
-{% block content %}
 
-<div class="section-block">
-  <div class="card">
-    <div class="section-head">
-      <div>
-        <div class="section-kicker">BATCH MOVEMENT</div>
-        <h2 class="section-title">Batch Transfer / Move Rolls</h2>
-        <p class="hint" style="margin-top:10px;">
-          Scan multiple Roll IDs, choose where they are now, and define the destination warehouse and sub-location.
-        </p>
-      </div>
+{% block content %}
+<div class="card">
+  <h2>Batch Transfer</h2>
+
+  <form method="post" action="{{ url_for('transfer_batch_form') }}">
+    <div class="form-row">
+      <label for="from_wh">From Warehouse</label>
+      <select name="from_wh" id="from_wh" required>
+        <option value="">Select source warehouse</option>
+        {% for wh in warehouses %}
+          <option value="{{ wh }}">{{ wh }}</option>
+        {% endfor %}
+      </select>
     </div>
 
-    <form method="POST" id="batchTransferForm" action="{{ url_for('transfer_batch_form') }}" style="margin-top:14px;">
-      <div class="grid2">
-        <div>
-          <label>From Warehouse</label>
-          <select name="from_wh" id="from_wh" required>
-            {% for w in warehouses %}
-              <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ w }}</option>
-            {% endfor %}
-          </select>
-        </div>
+    <div class="form-row">
+      <label for="to_wh">To Warehouse</label>
+      <select name="to_wh" id="to_wh" required onchange="updateLocations()">
+        <option value="">Select destination warehouse</option>
+        {% for wh in warehouses %}
+          <option value="{{ wh }}">{{ wh }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
-        <div>
-          <label>To Warehouse</label>
-          <select name="to_wh" id="to_wh" required>
-            {% for w in warehouses %}
-              <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ w }}</option>
-            {% endfor %}
-          </select>
-        </div>
+    <div class="form-row">
+      <label for="location">Destination Sub-Location</label>
+      <select name="location" id="location" required>
+        <option value="">Select destination sub-location</option>
+      </select>
+    </div>
 
-        <div>
-          <label>Destination Sub-Location</label>
-          <select name="location" id="location" required></select>
-        </div>
+    <div class="form-row">
+      <label for="roll_ids">Roll IDs</label>
+      <textarea
+        name="roll_ids"
+        id="roll_ids"
+        rows="12"
+        placeholder="Paste or scan one Roll ID per line"
+        required
+      ></textarea>
+    </div>
 
-        <div>
-          <label>Roll IDs (one per line)</label>
-          <textarea name="roll_ids" id="roll_ids" required placeholder="Scan or paste IDs here..."></textarea>
-        </div>
-      </div>
-
-      <div class="form-actions" style="margin-top:16px;">
-        <button class="btn primary" type="submit">OK → Move all rolls</button>
-        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
-      </div>
-    </form>
-  </div>
+    <div class="form-row">
+      <button type="submit" class="btn">Transfer Rolls</button>
+      <a href="{{ url_for('home') }}" class="btn">Back</a>
+    </div>
+  </form>
 </div>
 
 <script>
-  const wh1 = {{ locations_for('WH1')|tojson }};
-  const wh2 = {{ locations_for('WH2')|tojson }};
+  const wh1Locations = {{ wh1_locations | tojson }};
+  const wh2Locations = {{ wh2_locations | tojson }};
 
-  const toWhEl = document.getElementById("to_wh");
-  const locEl = document.getElementById("location");
-  const idsEl = document.getElementById("roll_ids");
+  function updateLocations() {
+    const wh = document.getElementById("to_wh").value;
+    const locationSelect = document.getElementById("location");
 
-  function fillLocations(wh) {
-    locEl.innerHTML = "";
-    let list = [];
+    locationSelect.innerHTML = '<option value="">Select destination sub-location</option>';
 
-    if (wh === "WH1") list = wh1;
-    if (wh === "WH2") list = wh2;
+    let locations = [];
+    if (wh === "WH1") {
+      locations = wh1Locations;
+    } else if (wh === "WH2") {
+      locations = wh2Locations;
+    }
 
-    list.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
-      locEl.appendChild(opt);
+    locations.forEach(loc => {
+      const option = document.createElement("option");
+      option.value = loc;
+      option.textContent = loc;
+      locationSelect.appendChild(option);
     });
   }
-
-  toWhEl.addEventListener("change", () => {
-    fillLocations(toWhEl.value);
-    setTimeout(() => idsEl.focus(), 50);
-  });
-
-  window.addEventListener("load", () => {
-    fillLocations(toWhEl.value);
-    idsEl.focus();
-  });
 </script>
-
 {% endblock %}
