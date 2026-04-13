@@ -57,6 +57,54 @@ def parse_roll_ids_multiline(raw_text: str):
     ids = [x.strip() for x in re.split(r"[\s,;]+", raw_text) if x.strip()]
     return list(dict.fromkeys(ids))
 
+def parse_bulk_roll_rows(raw_text: str):
+    """
+    Espera líneas tipo:
+    ROLL_ID, WEIGHT
+    ROLL_ID, WEIGHT
+    """
+    if not raw_text or not raw_text.strip():
+        return [], ["No data pasted."]
+
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    rows = []
+    errors = []
+
+    for line in lines:
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) != 2:
+            errors.append(f"Invalid row format: {line}")
+            continue
+
+        roll_id = clean(parts[0])
+        weight_raw = clean(parts[1])
+
+        if not roll_id:
+            errors.append(f"Missing Roll ID: {line}")
+            continue
+
+        if looks_like_scanned_weight(roll_id):
+            errors.append(f"Roll ID looks like weight: {roll_id}")
+            continue
+
+        try:
+            weight_lbs = int(float(weight_raw))
+        except Exception:
+            errors.append(f"Invalid weight: {line}")
+            continue
+
+        rows.append({"roll_id": roll_id, "weight_lbs": weight_lbs})
+
+    seen = set()
+    unique_rows = []
+    for row in rows:
+        rid = row["roll_id"]
+        if rid not in seen:
+            seen.add(rid)
+            unique_rows.append(row)
+
+    return unique_rows, errors
+
 def parse_bulk_rolls_input(raw_text: str):
     """
     Espera texto tipo:
