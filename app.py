@@ -994,9 +994,11 @@ def search():
     q = clean(request.args.get("q"))
     selected = clean(request.args.get("paper"))
 
-    matches = []
-    rolls = []
-    totals = None
+   matches = []
+rolls = []
+totals = None
+sublocation_summary = []
+warehouse_weight_summary = []
 
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -1055,17 +1057,55 @@ def search():
             (selected,),
         )
         totals = cur.fetchone()
+                cur.execute(
+            f"""
+            SELECT
+                {wh_col} AS warehouse,
+                {loc_expr} AS sublocation,
+                COUNT(*) AS cnt
+            FROM rolls
+            WHERE {paper_col} = %s
+            GROUP BY {wh_col}, {loc_expr}
+            ORDER BY
+                {wh_col},
+                CASE
+                    WHEN {loc_expr} ~ '^[0-9]+$' THEN CAST({loc_expr} AS INTEGER)
+                    ELSE 999
+                END,
+                {loc_expr}
+            """,
+            (selected,),
+        )
+        sublocation_summary = cur.fetchall() or []
+
+        cur.execute(
+            f"""
+            SELECT
+                {wh_col} AS warehouse,
+                COUNT(*) AS cnt,
+                COALESCE(SUM({weight_expr}), 0) AS total_weight
+            FROM rolls
+            WHERE {paper_col} = %s
+            GROUP BY {wh_col}
+            ORDER BY {wh_col}
+            """,
+            (selected,),
+        )
+        warehouse_weight_summary = cur.fetchall() or []
 
     cur.close()
     conn.close()
 
-    return render_template(
+       return render_template(
         "search.html",
         q=q,
         matches=matches,
         selected=selected,
         rolls=rolls,
         totals=totals,
+        sublocation_summary=sublocation_summary,
+        warehouse_weight_summary=warehouse_weight_summary,
+    )
     )
 
 if __name__ == "__main__":
