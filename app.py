@@ -1184,9 +1184,9 @@ def add_batch_form():
                     cur,
                     roll_id=roll_id,
                     action="BATCH_ADD",
-                    from_wh="",
+                    from_wh=warehouse,
                     to_wh=warehouse,
-                    from_loc="",
+                    from_loc=location,
                     to_loc=location,
                 )
 
@@ -1217,7 +1217,6 @@ def add_batch_form():
 
     flash(msg, "success" if added else "error")
     return redirect(url_for("add_batch_form"))
-
 
 @app.route("/search", methods=["GET"])
 @require_login
