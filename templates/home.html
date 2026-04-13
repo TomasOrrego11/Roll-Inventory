@@ -110,6 +110,18 @@
       <div class="action-sub">Move multiple scanned rolls into USED</div>
     </a>
 
+    <a
+      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('transfer_batch_form') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
+      <div class="action-tile-top">
+        <span class="action-badge neutral">BATCH</span>
+      </div>
+      <div class="action-title">Batch Transfer</div>
+      <div class="action-sub">Move multiple scanned rolls to another warehouse or sub-location</div>
+    </a>
+
     <a class="action-tile" href="{{ url_for('search') }}">
       <div class="action-tile-top">
         <span class="action-badge neutral">SEARCH</span>
