@@ -1133,9 +1133,14 @@ def add_batch_form():
             wh2_locations=locations_for("WH2"),
         )
 
+    paper_type = clean(request.form.get("paper_type")).upper()
     warehouse = clean(request.form.get("warehouse")).upper()
     location = read_form_location()
     raw_text = request.form.get("bulk_data", "")
+
+    if not paper_type:
+        flash("Paper Type is required.", "error")
+        return redirect(url_for("add_batch_form"))
 
     if warehouse not in ("WH1", "WH2"):
         flash("Invalid warehouse selection.", "error")
@@ -1149,11 +1154,7 @@ def add_batch_form():
         flash("Invalid Sub-Location for selected warehouse.", "error")
         return redirect(url_for("add_batch_form"))
 
-    paper_type, parsed_rows, parse_errors = parse_bulk_rolls_input(raw_text)
-
-    if not paper_type:
-        flash("Paper Type is missing or invalid.", "error")
-        return redirect(url_for("add_batch_form"))
+    parsed_rows, parse_errors = parse_bulk_roll_rows(raw_text)
 
     if not parsed_rows:
         flash("No valid roll rows found.", "error")
@@ -1166,40 +1167,51 @@ def add_batch_form():
     duplicates = []
     failed = list(parse_errors)
 
-    for row in parsed_rows:
-        roll_id = row["roll_id"]
-        weight_lbs = row["weight_lbs"]
+    try:
+        for row in parsed_rows:
+            roll_id = row["roll_id"]
+            weight_lbs = row["weight_lbs"]
 
-        existing = safe_select_roll(cur, roll_id)
-        if existing:
-            duplicates.append(roll_id)
-            continue
+            existing = safe_select_roll(cur, roll_id)
+            if existing:
+                duplicates.append(roll_id)
+                continue
 
-        try:
-            cur.execute(
-                """
-                INSERT INTO rolls (paper_type, roll_id, weight_lbs, warehouse, location)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (paper_type, roll_id, weight_lbs, warehouse, location),
-            )
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO rolls (paper_type, roll_id, weight_lbs, warehouse, location)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (paper_type, roll_id, weight_lbs, warehouse, location),
+                )
 
-            log_movement(
-                cur,
-                roll_id=roll_id,
-                action="BATCH_ADD",
-                from_wh="",
-                to_wh=warehouse,
-                from_loc="",
-                to_loc=location,
-            )
+                log_movement(
+                    cur,
+                    roll_id=roll_id,
+                    action="BATCH_ADD",
+                    from_wh="",
+                    to_wh=warehouse,
+                    from_loc="",
+                    to_loc=location,
+                )
 
-            added += 1
+                added += 1
 
-        except Exception as e:
-            failed.append(f"{roll_id}: {str(e)}")
+            except Exception as row_error:
+                conn.rollback()
+                cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                failed.append(f"{roll_id}: {str(row_error)}")
 
-    conn.commit()
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash(f"Batch add failed: {str(e)}", "error")
+        return redirect(url_for("add_batch_form"))
+
     cur.close()
     conn.close()
 
