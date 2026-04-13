@@ -74,6 +74,70 @@
       </div>
     {% endif %}
 
+    {% if warehouse_weight_summary|length > 0 %}
+  <div class="card" style="margin-top:14px;">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">WEIGHT BY WAREHOUSE</div>
+        <h3 class="section-title">Warehouse Weight Summary</h3>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Warehouse</th>
+            <th>Roll Count</th>
+            <th>Total Weight (lbs)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in warehouse_weight_summary %}
+            <tr>
+              <td>{{ row.warehouse }}</td>
+              <td>{{ row.cnt }}</td>
+              <td>{{ row.total_weight }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+    {% if sublocation_summary|length > 0 %}
+  <div class="card" style="margin-top:14px;">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">ROLLS BY SUBLOCATION</div>
+        <h3 class="section-title">Sublocation Summary</h3>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Warehouse</th>
+            <th>Sublocation</th>
+            <th>Roll Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in sublocation_summary %}
+            <tr>
+              <td>{{ row.warehouse }}</td>
+              <td>{{ row.sublocation }}</td>
+              <td>{{ row.cnt }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
     {% if rolls|length == 0 %}
       <p class="muted">No rolls found for this PaperType.</p>
     {% else %}
