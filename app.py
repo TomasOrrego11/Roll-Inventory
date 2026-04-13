@@ -899,6 +899,94 @@ def remove_batch_form():
     flash(msg, "success" if moved else "error")
     return redirect(url_for("remove_batch_form"))
 
+@app.route("/transfer-batch", methods=["GET", "POST"])
+@require_login
+@require_write
+def transfer_batch_form():
+    if request.method == "GET":
+        return render_template(
+            "transfer_batch.html",
+            warehouses=["WH1", "WH2"],
+            wh1_locations=locations_for("WH1"),
+            wh2_locations=locations_for("WH2"),
+        )
+
+    from_wh = clean(request.form.get("from_wh")).upper()
+    to_wh = clean(request.form.get("to_wh")).upper()
+    to_loc = read_form_location()
+    raw = clean(request.form.get("roll_ids"))
+
+    if from_wh not in ("WH1", "WH2") or to_wh not in ("WH1", "WH2"):
+        flash("Invalid warehouse selection.", "error")
+        return redirect(url_for("transfer_batch_form"))
+
+    if not to_loc:
+        flash("Destination Sub-Location is required.", "error")
+        return redirect(url_for("transfer_batch_form"))
+
+    if to_loc not in locations_for(to_wh):
+        flash("Invalid destination Sub-Location.", "error")
+        return redirect(url_for("transfer_batch_form"))
+
+    if not raw:
+        flash("Paste/scan roll IDs first.", "error")
+        return redirect(url_for("transfer_batch_form"))
+
+    ids = parse_roll_ids_multiline(raw)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    moved = 0
+    missing = []
+    blocked = []
+    wrong_wh = []
+
+    for rid in ids:
+        if looks_like_scanned_weight(rid):
+            blocked.append(rid)
+            continue
+
+        r = safe_select_roll(cur, rid)
+        if not r:
+            missing.append(rid)
+            continue
+
+        if r["warehouse"] != from_wh:
+            wrong_wh.append(f"{rid}({r['warehouse']})")
+            continue
+
+        safe_update_roll_location(cur, rid, to_wh, to_loc)
+
+        action_name = "BATCH_MOVE_WITHIN_WH" if from_wh == to_wh else "BATCH_TRANSFER"
+
+        log_movement(
+            cur,
+            roll_id=rid,
+            action=action_name,
+            from_wh=from_wh,
+            to_wh=to_wh,
+            from_loc=r["location"],
+            to_loc=to_loc,
+        )
+
+        moved += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    msg = f"Moved {moved} roll(s)."
+    if missing:
+        msg += f" Missing: {', '.join(missing[:10])}" + ("..." if len(missing) > 10 else "")
+    if blocked:
+        msg += f" Blocked as possible weight scan: {', '.join(blocked[:10])}" + ("..." if len(blocked) > 10 else "")
+    if wrong_wh:
+        msg += f" Wrong source warehouse: {', '.join(wrong_wh[:10])}" + ("..." if len(wrong_wh) > 10 else "")
+
+    flash(msg, "success" if moved else "error")
+    return redirect(url_for("transfer_batch_form"))
+
 
 @app.route("/search", methods=["GET"])
 @require_login
