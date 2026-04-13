@@ -1003,10 +1003,10 @@ def search():
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    paper_col = col_exists(cur, "rolls", ["paper_type", "papertype"])
-    wh_col = col_exists(cur, "rolls", ["warehouse"])
-    loc_col = col_exists(cur, "rolls", ["sublocation", "location"])
-    weight_col = col_exists(cur, "rolls", ["weight_lbs", "weight"])
+    paper_col = col_exists(cur, "rolls", "paper_type") or col_exists(cur, "rolls", "papertype")
+    wh_col = col_exists(cur, "rolls", "warehouse")
+    loc_col = col_exists(cur, "rolls", "sublocation") or col_exists(cur, "rolls", "location")
+    weight_col = col_exists(cur, "rolls", "weight_lbs") or col_exists(cur, "rolls", "weight")
 
     if not paper_col or not wh_col or not loc_col or not weight_col:
         cur.close()
