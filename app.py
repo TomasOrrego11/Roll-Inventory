@@ -1178,12 +1178,13 @@ def add_batch_form():
                 continue
 
             try:
-                cur.execute(
-                    """
-                    INSERT INTO rolls (paper_type, roll_id, weight_lbs, warehouse, location)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (paper_type, roll_id, weight_lbs, warehouse, location),
+                safe_insert_roll(
+                    cur=cur,
+                    roll_id=roll_id,
+                    paper_type=paper_type,
+                    weight_lbs=weight_lbs,
+                    warehouse=warehouse,
+                    location=location,
                 )
 
                 log_movement(
