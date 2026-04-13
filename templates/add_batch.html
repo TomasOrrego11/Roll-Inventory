@@ -9,7 +9,7 @@
         <div class="section-kicker">BULK INBOUND</div>
         <h3>Batch Add Rolls</h3>
         <div class="hint" style="margin-top:8px;">
-          Paste one Paper Type once, then all Roll IDs and weights below.
+          Enter Paper Type once, then paste Roll ID and weight lines below.
         </div>
       </div>
 
@@ -20,6 +20,16 @@
 
     <form method="post" autocomplete="off" style="margin-top:14px;">
       <div class="form-grid">
+        <div>
+          <label>Paper Type</label>
+          <input
+            type="text"
+            name="paper_type"
+            placeholder="e.g. 60SOMFSCMAT35"
+            required
+          >
+        </div>
+
         <div>
           <label>Warehouse</label>
           <select name="warehouse" id="warehouse" required onchange="updateLocations()">
@@ -39,12 +49,12 @@
       </div>
 
       <div style="margin-top:14px;">
-        <label>Paste Batch Data</label>
+        <label>Paste Roll IDs and Weights</label>
         <textarea
           name="bulk_data"
           rows="18"
           placeholder="Example:
-60SOMFSCMAT35: SW336A1126343, 2766
+SW336A1126343, 2766
 SW336A1128143, 2744
 SW336A1128155, 2743"
           required
