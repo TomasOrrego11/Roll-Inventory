@@ -994,28 +994,46 @@ def search():
     q = clean(request.args.get("q"))
     selected = clean(request.args.get("paper"))
 
-   matches = []
-rolls = []
-totals = None
-sublocation_summary = []
-warehouse_weight_summary = []
+    matches = []
+    rolls = []
+    totals = None
+    sublocation_summary = []
+    warehouse_weight_summary = []
 
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cols = get_table_cols(cur, "rolls")
-    paper_col, wh_col, weight_cols, loc_cols, _ = rolls_columns(cols)
+    paper_col = col_exists(cur, "rolls", ["paper_type", "papertype"])
+    wh_col = col_exists(cur, "rolls", ["warehouse"])
+    loc_col = col_exists(cur, "rolls", ["sublocation", "location"])
+    weight_col = col_exists(cur, "rolls", ["weight_lbs", "weight"])
 
-    weight_expr = "COALESCE(weight_lbs, weight)" if ("weight_lbs" in cols and "weight" in cols) else weight_cols[0]
-    loc_expr = "COALESCE(location, sublocation)" if ("location" in cols and "sublocation" in cols) else loc_cols[0]
+    if not paper_col or not wh_col or not loc_col or not weight_col:
+        cur.close()
+        conn.close()
+        flash("Missing one or more required columns in rolls table.", "error")
+        return render_template(
+            "search.html",
+            q=q,
+            matches=matches,
+            selected=selected,
+            rolls=rolls,
+            totals=totals,
+            sublocation_summary=sublocation_summary,
+            warehouse_weight_summary=warehouse_weight_summary,
+        )
+
+    loc_expr = f"COALESCE({loc_col}::text, '')"
+    weight_expr = f"COALESCE({weight_col}, 0)"
 
     if q:
         cur.execute(
             f"""
             SELECT DISTINCT {paper_col} AS paper_type
             FROM rolls
-            WHERE TRIM({paper_col}) ILIKE %s
+            WHERE {paper_col} ILIKE %s
             ORDER BY {paper_col}
+            LIMIT 100
             """,
             (f"%{q}%",),
         )
@@ -1024,10 +1042,11 @@ warehouse_weight_summary = []
     if selected:
         cur.execute(
             f"""
-            SELECT roll_id,
-                   {wh_col} AS warehouse,
-                   {loc_expr} AS sublocation,
-                   {weight_expr} AS weight_lbs
+            SELECT
+                roll_id,
+                {wh_col} AS warehouse,
+                {loc_expr} AS sublocation,
+                {weight_expr} AS weight_lbs
             FROM rolls
             WHERE {paper_col} = %s
             ORDER BY
@@ -1057,7 +1076,8 @@ warehouse_weight_summary = []
             (selected,),
         )
         totals = cur.fetchone()
-                cur.execute(
+
+        cur.execute(
             f"""
             SELECT
                 {wh_col} AS warehouse,
@@ -1096,7 +1116,7 @@ warehouse_weight_summary = []
     cur.close()
     conn.close()
 
-       return render_template(
+    return render_template(
         "search.html",
         q=q,
         matches=matches,
@@ -1105,7 +1125,6 @@ warehouse_weight_summary = []
         totals=totals,
         sublocation_summary=sublocation_summary,
         warehouse_weight_summary=warehouse_weight_summary,
-    )
     )
 
 if __name__ == "__main__":
