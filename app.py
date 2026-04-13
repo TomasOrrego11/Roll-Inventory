@@ -50,6 +50,13 @@ def looks_like_scanned_weight(roll_id: str) -> bool:
     # block ONLY 4-digit numeric values; 5-digit IDs are allowed
     return bool(re.fullmatch(r"\d{4}", clean(roll_id)))
 
+def parse_roll_ids_multiline(raw_text: str):
+    if not raw_text:
+        return []
+
+    ids = [x.strip() for x in re.split(r"[\s,;]+", raw_text) if x.strip()]
+    return list(dict.fromkeys(ids))
+
 
 def get_conn():
     if not DATABASE_URL:
