@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% set title = "Batch Transfer / Move Rolls" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">BATCH MOVEMENT</div>
+        <h2 class="section-title">Batch Transfer / Move Rolls</h2>
+        <p class="hint" style="margin-top:10px;">
+          Scan multiple Roll IDs, choose where they are now, and define the destination warehouse and sub-location.
+        </p>
+      </div>
+    </div>
+
+    <form method="POST" id="batchTransferForm" action="{{ url_for('transfer_batch_form') }}" style="margin-top:14px;">
+      <div class="grid2">
+        <div>
+          <label>From Warehouse</label>
+          <select name="from_wh" id="from_wh" required>
+            {% for w in warehouses %}
+              <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>To Warehouse</label>
+          <select name="to_wh" id="to_wh" required>
+            {% for w in warehouses %}
+              <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>Destination Sub-Location</label>
+          <select name="location" id="location" required></select>
+        </div>
+
+        <div>
+          <label>Roll IDs (one per line)</label>
+          <textarea name="roll_ids" id="roll_ids" required placeholder="Scan or paste IDs here..."></textarea>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">OK → Move all rolls</button>
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const wh1 = {{ locations_for('WH1')|tojson }};
+  const wh2 = {{ locations_for('WH2')|tojson }};
+
+  const toWhEl = document.getElementById("to_wh");
+  const locEl = document.getElementById("location");
+  const idsEl = document.getElementById("roll_ids");
+
+  function fillLocations(wh) {
+    locEl.innerHTML = "";
+    let list = [];
+
+    if (wh === "WH1") list = wh1;
+    if (wh === "WH2") list = wh2;
+
+    list.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      locEl.appendChild(opt);
+    });
+  }
+
+  toWhEl.addEventListener("change", () => {
+    fillLocations(toWhEl.value);
+    setTimeout(() => idsEl.focus(), 50);
+  });
+
+  window.addEventListener("load", () => {
+    fillLocations(toWhEl.value);
+    idsEl.focus();
+  });
+</script>
+
+{% endblock %}
