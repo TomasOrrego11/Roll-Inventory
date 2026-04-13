@@ -63,6 +63,18 @@
     </a>
 
     <a
+      class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
+      href="{% if can_write() %}{{ url_for('add_batch_form') }}{% else %}#{% endif %}"
+      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
+    >
+      <div class="action-tile-top">
+        <span class="action-badge">BATCH</span>
+      </div>
+      <div class="action-title">Batch Add</div>
+      <div class="action-sub">Paste and register multiple new rolls at once</div>
+    </a>
+
+    <a
       class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
       href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}{% else %}#{% endif %}"
       {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
