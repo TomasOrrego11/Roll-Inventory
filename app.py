@@ -57,6 +57,92 @@ def parse_roll_ids_multiline(raw_text: str):
     ids = [x.strip() for x in re.split(r"[\s,;]+", raw_text) if x.strip()]
     return list(dict.fromkeys(ids))
 
+def parse_bulk_rolls_input(raw_text: str):
+    """
+    Espera texto tipo:
+    PAPER_TYPE: ROLL_ID, WEIGHT
+    ROLL_ID, WEIGHT
+    ROLL_ID, WEIGHT
+
+    Devuelve:
+    paper_type, rows, errors
+    donde rows = [{"roll_id": ..., "weight_lbs": ...}, ...]
+    """
+    if not raw_text or not raw_text.strip():
+        return "", [], ["No data pasted."]
+
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    if not lines:
+        return "", [], ["No valid lines found."]
+
+    paper_type = ""
+    rows = []
+    errors = []
+
+    first_line = lines[0]
+
+    if ":" in first_line:
+        left, right = first_line.split(":", 1)
+        paper_type = clean(left)
+
+        right = right.strip()
+        if right:
+            parts = [p.strip() for p in right.split(",")]
+            if len(parts) != 2:
+                errors.append(f"Invalid first row format: {first_line}")
+            else:
+                roll_id = clean(parts[0])
+                weight_raw = clean(parts[1])
+
+                if not roll_id:
+                    errors.append(f"Missing Roll ID in first row: {first_line}")
+                elif looks_like_scanned_weight(roll_id):
+                    errors.append(f"First row Roll ID looks like weight: {roll_id}")
+                else:
+                    try:
+                        weight_lbs = int(float(weight_raw))
+                        rows.append({"roll_id": roll_id, "weight_lbs": weight_lbs})
+                    except Exception:
+                        errors.append(f"Invalid weight in first row: {first_line}")
+    else:
+        errors.append("First line must include Paper Type followed by ':'")
+
+    for line in lines[1:]:
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) != 2:
+            errors.append(f"Invalid row format: {line}")
+            continue
+
+        roll_id = clean(parts[0])
+        weight_raw = clean(parts[1])
+
+        if not roll_id:
+            errors.append(f"Missing Roll ID: {line}")
+            continue
+
+        if looks_like_scanned_weight(roll_id):
+            errors.append(f"Roll ID looks like weight: {roll_id}")
+            continue
+
+        try:
+            weight_lbs = int(float(weight_raw))
+        except Exception:
+            errors.append(f"Invalid weight: {line}")
+            continue
+
+        rows.append({"roll_id": roll_id, "weight_lbs": weight_lbs})
+
+    # quitar duplicados por roll_id sin perder orden
+    seen = set()
+    unique_rows = []
+    for row in rows:
+        rid = row["roll_id"]
+        if rid not in seen:
+            seen.add(rid)
+            unique_rows.append(row)
+
+    return paper_type, unique_rows, errors
+
 
 def get_conn():
     if not DATABASE_URL:
@@ -986,6 +1072,97 @@ def transfer_batch_form():
 
     flash(msg, "success" if moved else "error")
     return redirect(url_for("transfer_batch_form"))
+
+@app.route("/add-batch", methods=["GET", "POST"])
+@require_login
+@require_write
+def add_batch_form():
+    if request.method == "GET":
+        return render_template(
+            "add_batch.html",
+            warehouses=["WH1", "WH2"],
+            wh1_locations=locations_for("WH1"),
+            wh2_locations=locations_for("WH2"),
+        )
+
+    warehouse = clean(request.form.get("warehouse")).upper()
+    location = read_form_location()
+    raw_text = request.form.get("bulk_data", "")
+
+    if warehouse not in ("WH1", "WH2"):
+        flash("Invalid warehouse selection.", "error")
+        return redirect(url_for("add_batch_form"))
+
+    if not location:
+        flash("Sub-Location is required.", "error")
+        return redirect(url_for("add_batch_form"))
+
+    if location not in locations_for(warehouse):
+        flash("Invalid Sub-Location for selected warehouse.", "error")
+        return redirect(url_for("add_batch_form"))
+
+    paper_type, parsed_rows, parse_errors = parse_bulk_rolls_input(raw_text)
+
+    if not paper_type:
+        flash("Paper Type is missing or invalid.", "error")
+        return redirect(url_for("add_batch_form"))
+
+    if not parsed_rows:
+        flash("No valid roll rows found.", "error")
+        return redirect(url_for("add_batch_form"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    added = 0
+    duplicates = []
+    failed = list(parse_errors)
+
+    for row in parsed_rows:
+        roll_id = row["roll_id"]
+        weight_lbs = row["weight_lbs"]
+
+        existing = safe_select_roll(cur, roll_id)
+        if existing:
+            duplicates.append(roll_id)
+            continue
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO rolls (paper_type, roll_id, weight_lbs, warehouse, location)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (paper_type, roll_id, weight_lbs, warehouse, location),
+            )
+
+            log_movement(
+                cur,
+                roll_id=roll_id,
+                action="BATCH_ADD",
+                from_wh="",
+                to_wh=warehouse,
+                from_loc="",
+                to_loc=location,
+            )
+
+            added += 1
+
+        except Exception as e:
+            failed.append(f"{roll_id}: {str(e)}")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    msg = f"Added {added} roll(s) for Paper Type {paper_type}."
+    if duplicates:
+        msg += f" Duplicates skipped: {', '.join(duplicates[:10])}" + ("..." if len(duplicates) > 10 else "")
+    if failed:
+        msg += f" Errors: {', '.join(failed[:10])}" + ("..." if len(failed) > 10 else "")
+
+    flash(msg, "success" if added else "error")
+    return redirect(url_for("add_batch_form"))
 
 
 @app.route("/search", methods=["GET"])
