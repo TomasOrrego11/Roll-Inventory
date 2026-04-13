@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% set title = "Batch Add Rolls" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">BULK INBOUND</div>
+        <h3>Batch Add Rolls</h3>
+        <div class="hint" style="margin-top:8px;">
+          Paste one Paper Type once, then all Roll IDs and weights below.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
+      </div>
+    </div>
+
+    <form method="post" autocomplete="off" style="margin-top:14px;">
+      <div class="form-grid">
+        <div>
+          <label>Warehouse</label>
+          <select name="warehouse" id="warehouse" required onchange="updateLocations()">
+            <option value="">Select warehouse</option>
+            {% for wh in warehouses %}
+              <option value="{{ wh }}">{{ wh }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>Sub-Location</label>
+          <select name="location" id="location" required>
+            <option value="">Select sub-location</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <label>Paste Batch Data</label>
+        <textarea
+          name="bulk_data"
+          rows="18"
+          placeholder="Example:
+60SOMFSCMAT35: SW336A1126343, 2766
+SW336A1128143, 2744
+SW336A1128155, 2743"
+          required
+        ></textarea>
+      </div>
+
+      <div class="form-actions" style="margin-top:14px;">
+        <button class="btn primary" type="submit">Add Rolls</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const wh1Locations = {{ wh1_locations | tojson }};
+  const wh2Locations = {{ wh2_locations | tojson }};
+
+  function updateLocations() {
+    const warehouse = document.getElementById("warehouse").value;
+    const locationSelect = document.getElementById("location");
+
+    locationSelect.innerHTML = '<option value="">Select sub-location</option>';
+
+    let locations = [];
+    if (warehouse === "WH1") {
+      locations = wh1Locations;
+    } else if (warehouse === "WH2") {
+      locations = wh2Locations;
+    }
+
+    locations.forEach(loc => {
+      const option = document.createElement("option");
+      option.value = loc;
+      option.textContent = loc;
+      locationSelect.appendChild(option);
+    });
+  }
+</script>
+
+{% endblock %}
