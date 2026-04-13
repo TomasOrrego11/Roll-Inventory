@@ -1003,25 +1003,10 @@ def search():
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-  paper_col = "paper_type"
-wh_col = "warehouse"
-loc_col = "location"
-weight_col = "weight_lbs"
-
-    if not paper_col or not wh_col or not loc_col or not weight_col:
-        cur.close()
-        conn.close()
-        flash("Missing one or more required columns in rolls table.", "error")
-        return render_template(
-            "search.html",
-            q=q,
-            matches=matches,
-            selected=selected,
-            rolls=rolls,
-            totals=totals,
-            sublocation_summary=sublocation_summary,
-            warehouse_weight_summary=warehouse_weight_summary,
-        )
+    paper_col = "paper_type"
+    wh_col = "warehouse"
+    loc_col = "location"
+    weight_col = "weight_lbs"
 
     loc_expr = f"COALESCE({loc_col}::text, '')"
     weight_expr = f"COALESCE({weight_col}, 0)"
