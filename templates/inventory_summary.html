@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% set title = "Inventory Summary - " ~ warehouse_label(warehouse) %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">SIMPLIFIED VIEW</div>
+        <h3>Inventory Summary — {{ warehouse_label(warehouse) }}</h3>
+        <div class="hint" style="margin-top:8px;">
+          Quick view by row and paper type, without showing each roll individually.
+        </div>
+
+        <div class="stats-row" style="margin-top:12px;">
+          <span class="badge ok">Rows: {{ totals.row_count }}</span>
+          <span class="badge">Paper Types: {{ totals.paper_type_count }}</span>
+          <span class="badge">Rolls: {{ totals.roll_count }}</span>
+          <span class="badge warn">Total Weight: {{ totals.total_weight }}</span>
+          {% if not can_write() %}
+            <span class="badge">Read Only</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('inventory', warehouse=warehouse) }}">
+          Detailed View
+        </a>
+        <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">ROW SUMMARY</div>
+        <h2 class="section-title">Paper types by row</h2>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Row</th>
+            <th>Paper Type</th>
+            <th>Roll Count</th>
+            <th>Total Weight (lbs)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.location }}</td>
+            <td>{{ r.paper_type }}</td>
+            <td>{{ r.cnt }}</td>
+            <td>{{ r.total_weight }}</td>
+          </tr>
+          {% endfor %}
+
+          {% if not rows %}
+          <tr>
+            <td colspan="4" class="hint" style="padding:16px;">
+              No rolls found in {{ warehouse_label(warehouse) }}.
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
