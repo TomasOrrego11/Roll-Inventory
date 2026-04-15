@@ -46,25 +46,36 @@
       <table>
         <thead>
           <tr>
-            <th>Row</th>
             <th>Paper Type</th>
             <th>Roll Count</th>
             <th>Total Weight (lbs)</th>
           </tr>
         </thead>
         <tbody>
+          {% set current_row = None %}
+
           {% for r in rows %}
-          <tr>
-            <td>{{ r.location }}</td>
-            <td>{{ r.paper_type }}</td>
-            <td>{{ r.cnt }}</td>
-            <td>{{ r.total_weight }}</td>
-          </tr>
+
+            {% if r.location != current_row %}
+              <tr>
+                <td colspan="3" style="background:#0f172a; color:white; font-weight:700; padding:10px 14px;">
+                  Row {{ r.location }}
+                </td>
+              </tr>
+              {% set current_row = r.location %}
+            {% endif %}
+
+            <tr>
+              <td>{{ r.paper_type }}</td>
+              <td>{{ r.cnt }}</td>
+              <td>{{ r.total_weight }}</td>
+            </tr>
+
           {% endfor %}
 
           {% if not rows %}
           <tr>
-            <td colspan="4" class="hint" style="padding:16px;">
+            <td colspan="3" class="hint" style="padding:16px;">
               No rolls found in {{ warehouse_label(warehouse) }}.
             </td>
           </tr>
