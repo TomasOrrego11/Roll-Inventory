@@ -486,6 +486,22 @@ def init_db():
     cur.close()
     conn.close()
 
+# ===== VISUAL LABELS (NO ROMPE DB) =====
+WAREHOUSE_LABELS = {
+    "WH1": "Warehouse Mittera",
+    "WH2": "Andrews Mittera",
+    "USED": "In Use Inventory",
+}
+
+def warehouse_label(code):
+    if not code:
+        return ""
+    return WAREHOUSE_LABELS.get(code.upper(), code)
+
+def row_label(text):
+    if not text:
+        return ""
+    return text.replace("Sub-Location", "Row").replace("Sublocation", "Row")
 
 @app.before_request
 def _ensure_db():
