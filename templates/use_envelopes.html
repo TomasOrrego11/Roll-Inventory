@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set title = "Use Envelopes" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">ENVELOPE INVENTORY</div>
+        <h3>Use / Remove Pallets</h3>
+        <div class="hint" style="margin-top:8px;">
+          Subtract used pallets from an envelope type.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <form method="POST" class="form-grid">
+      <div class="form-group">
+        <label>Envelope Type</label>
+        <input type="text" name="envelope_type" placeholder="e.g. C/FSC" required>
+      </div>
+
+      <div class="form-group">
+        <label>Quantity Used</label>
+        <input type="number" name="quantity" placeholder="e.g. 3" min="1" required>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button class="btn primary" type="submit">Use</button>
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
