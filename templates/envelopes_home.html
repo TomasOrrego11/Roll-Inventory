@@ -46,6 +46,7 @@
           <tr>
             <th>Envelope Type</th>
             <th>Pallet Count</th>
+            <th>Actions</th>
             <th>Last Updated</th>
           </tr>
         </thead>
@@ -54,14 +55,29 @@
           {% for r in rows %}
           <tr>
             <td>{{ r.envelope_type }}</td>
-            <td>{{ r.pallet_count }}</td>
+            <td><strong>{{ r.pallet_count }}</strong></td>
+            <td>
+              {% if can_write() %}
+              <div style="display:flex; gap:6px;">
+                <form method="POST" action="{{ url_for('update_envelope_quantity', envelope_type=r.envelope_type) }}" style="margin:0;">
+                  <input type="hidden" name="action" value="remove">
+                  <button class="btn ghost" type="submit">−</button>
+                </form>
+
+                <form method="POST" action="{{ url_for('update_envelope_quantity', envelope_type=r.envelope_type) }}" style="margin:0;">
+                  <input type="hidden" name="action" value="add">
+                  <button class="btn primary" type="submit">+</button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
             <td>{{ r.updated_at }}</td>
           </tr>
           {% endfor %}
 
           {% if not rows %}
           <tr>
-            <td colspan="3" class="hint" style="padding:16px;">
+            <td colspan="4" class="hint" style="padding:16px;">
               No envelope inventory yet.
             </td>
           </tr>
