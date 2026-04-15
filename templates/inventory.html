@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set title = "Inventory - " ~ warehouse %}
+{% set title = "Inventory - " ~ warehouse_label(warehouse) %}
 {% block content %}
 
 <div class="section-block">
@@ -7,7 +7,7 @@
     <div class="panel-head">
       <div>
         <div class="section-kicker">WAREHOUSE VIEW</div>
-        <h3>Inventory — {{ warehouse }}</h3>
+        <h3>Inventory — {{ warehouse_label(warehouse) }}</h3>
         <div class="hint" style="margin-top:8px;">
           Live inventory view with count, total weight and roll-level actions.
         </div>
@@ -28,7 +28,7 @@
             href="{% if can_write() %}{{ url_for('add_form', warehouse=warehouse) }}{% else %}#{% endif %}"
             {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
           >
-            Add to {{ warehouse }}
+            Add to {{ warehouse_label(warehouse) }}
           </a>
         {% endif %}
         <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
@@ -39,11 +39,11 @@
     <form
       method="post"
       action="{% if can_write() %}{{ url_for('clear_used_inventory') }}{% else %}#{% endif %}"
-      onsubmit="{% if can_write() %}return confirm('Delete ALL rolls in USED?');{% else %}return false;{% endif %}"
+      onsubmit="{% if can_write() %}return confirm('Delete ALL rolls in In Use Inventory?');{% else %}return false;{% endif %}"
       style="margin: 16px 0 0 0;"
     >
       <button class="btn danger {% if not can_write() %}disabled-btn{% endif %}" type="submit">
-        Clear USED Inventory
+        Clear In Use Inventory
       </button>
     </form>
     {% endif %}
@@ -67,7 +67,7 @@
             <th>Paper Type</th>
             <th>Weight</th>
             <th>WH</th>
-            <th>Loc</th>
+            <th>Row</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -77,7 +77,7 @@
             <td><strong>{{ r.roll_id }}</strong></td>
             <td>{{ r.paper_type }}</td>
             <td>{{ r.weight }}</td>
-            <td>{{ r.warehouse }}</td>
+            <td>{{ warehouse_label(r.warehouse) }}</td>
             <td>{{ r.location }}</td>
             <td>
               <div class="row-actions">
@@ -97,7 +97,7 @@
                   class="{% if can_write() %}to-used-form{% endif %}"
                   onsubmit="{% if can_write() %}return true;{% else %}return false;{% endif %}"
                 >
-                  <button class="btn {% if not can_write() %}disabled-btn{% endif %}" type="submit">→ USED</button>
+                  <button class="btn {% if not can_write() %}disabled-btn{% endif %}" type="submit">→ IN USE</button>
                 </form>
                 {% endif %}
 
@@ -118,7 +118,7 @@
 
           {% if not rows %}
           <tr id="empty-row">
-            <td colspan="6" class="hint" style="padding:16px;">No rolls in {{ warehouse }}.</td>
+            <td colspan="6" class="hint" style="padding:16px;">No rolls in {{ warehouse_label(warehouse) }}.</td>
           </tr>
           {% endif %}
         </tbody>
@@ -181,13 +181,13 @@
           if (remainingRows.length === 0 && !document.getElementById("empty-row")) {
             const emptyRow = document.createElement("tr");
             emptyRow.id = "empty-row";
-            emptyRow.innerHTML = `<td colspan="6" class="hint" style="padding:16px;">No rolls in {{ warehouse }}.</td>`;
+            emptyRow.innerHTML = `<td colspan="6" class="hint" style="padding:16px;">No rolls in {{ warehouse_label(warehouse) }}.</td>`;
             tbody.appendChild(emptyRow);
           }
         } catch (err) {
           button.disabled = false;
-          button.textContent = "→ USED";
-          alert(err.message || "Error moving roll to USED.");
+          button.textContent = "→ IN USE";
+          alert(err.message || "Error moving roll to In Use Inventory.");
         }
       });
     });
