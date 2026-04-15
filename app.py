@@ -692,6 +692,122 @@ def add_envelope():
 
     return redirect(url_for("envelopes_home"))
 
+@app.route("/envelopes/receive", methods=["GET", "POST"])
+@require_login
+@require_write
+def receive_envelopes():
+    if request.method == "GET":
+        return render_template("receive_envelopes.html")
+
+    envelope_type = clean(request.form.get("envelope_type")).upper()
+    qty_raw = clean(request.form.get("quantity"))
+
+    if not envelope_type:
+        flash("Envelope Type is required.", "error")
+        return redirect(url_for("receive_envelopes"))
+
+    try:
+        qty = int(qty_raw)
+    except Exception:
+        flash("Quantity must be a number.", "error")
+        return redirect(url_for("receive_envelopes"))
+
+    if qty <= 0:
+        flash("Quantity must be greater than 0.", "error")
+        return redirect(url_for("receive_envelopes"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT pallet_count FROM envelope_inventory WHERE envelope_type=%s",
+        (envelope_type,)
+    )
+    row = cur.fetchone()
+
+    if row:
+        new_total = row["pallet_count"] + qty
+        cur.execute(
+            """
+            UPDATE envelope_inventory
+            SET pallet_count=%s, updated_at=NOW()
+            WHERE envelope_type=%s
+            """,
+            (new_total, envelope_type)
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO envelope_inventory (envelope_type, pallet_count)
+            VALUES (%s, %s)
+            """,
+            (envelope_type, qty)
+        )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash(f"Received {qty} pallet(s).", "success")
+    return redirect(url_for("envelopes_home"))
+
+@app.route("/envelopes/use", methods=["GET", "POST"])
+@require_login
+@require_write
+def use_envelopes():
+    if request.method == "GET":
+        return render_template("use_envelopes.html")
+
+    envelope_type = clean(request.form.get("envelope_type")).upper()
+    qty_raw = clean(request.form.get("quantity"))
+
+    if not envelope_type:
+        flash("Envelope Type is required.", "error")
+        return redirect(url_for("use_envelopes"))
+
+    try:
+        qty = int(qty_raw)
+    except Exception:
+        flash("Quantity must be a number.", "error")
+        return redirect(url_for("use_envelopes"))
+
+    if qty <= 0:
+        flash("Quantity must be greater than 0.", "error")
+        return redirect(url_for("use_envelopes"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT pallet_count FROM envelope_inventory WHERE envelope_type=%s",
+        (envelope_type,)
+    )
+    row = cur.fetchone()
+
+    if not row:
+        cur.close()
+        conn.close()
+        flash("Envelope type not found.", "error")
+        return redirect(url_for("use_envelopes"))
+
+    new_total = max(0, row["pallet_count"] - qty)
+
+    cur.execute(
+        """
+        UPDATE envelope_inventory
+        SET pallet_count=%s, updated_at=NOW()
+        WHERE envelope_type=%s
+        """,
+        (new_total, envelope_type)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash(f"Used {qty} pallet(s).", "success")
+    return redirect(url_for("envelopes_home"))
+
 @app.route("/envelopes/update/<path:envelope_type>", methods=["POST"])
 @require_login
 @require_write
