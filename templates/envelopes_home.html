@@ -23,7 +23,9 @@
 
       <div class="panel-actions">
         {% if can_write() %}
-          <a class="btn primary" href="{{ url_for('add_envelope') }}">Add / Update</a>
+          <a class="btn primary" href="{{ url_for('receive_envelopes') }}">Receive Pallets</a>
+          <a class="btn ghost" href="{{ url_for('use_envelopes') }}">Use Pallets</a>
+          <a class="btn ghost" href="{{ url_for('edit_envelope_name') }}">Edit Name</a>
         {% endif %}
         <a class="btn ghost" href="{{ url_for('home') }}">Modules</a>
       </div>
@@ -46,7 +48,6 @@
           <tr>
             <th>Envelope Type</th>
             <th>Pallet Count</th>
-            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -55,27 +56,12 @@
           <tr>
             <td>{{ r.envelope_type }}</td>
             <td><strong>{{ r.pallet_count }}</strong></td>
-            <td>
-              {% if can_write() %}
-              <div style="display:flex; gap:6px;">
-                <form method="POST" action="{{ url_for('update_envelope_quantity', envelope_type=r.envelope_type) }}" style="margin:0;">
-                  <input type="hidden" name="action" value="remove">
-                  <button class="btn ghost" type="submit">−</button>
-                </form>
-
-                <form method="POST" action="{{ url_for('update_envelope_quantity', envelope_type=r.envelope_type) }}" style="margin:0;">
-                  <input type="hidden" name="action" value="add">
-                  <button class="btn primary" type="submit">+</button>
-                </form>
-              </div>
-              {% endif %}
-            </td>
           </tr>
           {% endfor %}
 
           {% if not rows %}
           <tr>
-            <td colspan="3" class="hint" style="padding:16px;">
+            <td colspan="2" class="hint" style="padding:16px;">
               No envelope inventory yet.
             </td>
           </tr>
