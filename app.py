@@ -815,57 +815,103 @@ def edit_envelope_name():
     if request.method == "GET":
         return render_template("edit_envelope_name.html")
 
-    old_name = clean(request.form.get("old_name")).upper()
-    new_name = clean(request.form.get("new_name")).upper()
-
-    if not old_name or not new_name:
-        flash("Current Envelope Type and New Envelope Type are required.", "error")
-        return redirect(url_for("edit_envelope_name"))
+    mode = clean(request.form.get("mode")).lower()
 
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute(
-        "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
-        (old_name,)
-    )
-    existing_old = cur.fetchone()
+    if mode == "add":
+        new_name = clean(request.form.get("new_name")).upper()
 
-    if not existing_old:
+        if not new_name:
+            cur.close()
+            conn.close()
+            flash("New Envelope Type is required.", "error")
+            return redirect(url_for("edit_envelope_name"))
+
+        cur.execute(
+            "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
+            (new_name,),
+        )
+        existing_new = cur.fetchone()
+
+        if existing_new:
+            cur.close()
+            conn.close()
+            flash("Envelope Type already exists.", "error")
+            return redirect(url_for("edit_envelope_name"))
+
+        cur.execute(
+            """
+            INSERT INTO envelope_inventory (envelope_type, pallet_count)
+            VALUES (%s, 0)
+            """,
+            (new_name,),
+        )
+
+        conn.commit()
         cur.close()
         conn.close()
-        flash("Current Envelope Type not found.", "error")
-        return redirect(url_for("edit_envelope_name"))
 
-    cur.execute(
-        "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
-        (new_name,)
-    )
-    existing_new = cur.fetchone()
+        flash("Envelope type added.", "success")
+        return redirect(url_for("envelopes_home"))
 
-    if existing_new:
+    elif mode == "rename":
+        old_name = clean(request.form.get("old_name")).upper()
+        new_name = clean(request.form.get("rename_to")).upper()
+
+        if not old_name or not new_name:
+            cur.close()
+            conn.close()
+            flash("Current Envelope Type and New Envelope Type are required.", "error")
+            return redirect(url_for("edit_envelope_name"))
+
+        cur.execute(
+            "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
+            (old_name,),
+        )
+        existing_old = cur.fetchone()
+
+        if not existing_old:
+            cur.close()
+            conn.close()
+            flash("Current Envelope Type not found.", "error")
+            return redirect(url_for("edit_envelope_name"))
+
+        cur.execute(
+            "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
+            (new_name,),
+        )
+        existing_new = cur.fetchone()
+
+        if existing_new:
+            cur.close()
+            conn.close()
+            flash("New Envelope Type already exists.", "error")
+            return redirect(url_for("edit_envelope_name"))
+
+        cur.execute(
+            """
+            UPDATE envelope_inventory
+            SET envelope_type=%s,
+                updated_at=NOW()
+            WHERE envelope_type=%s
+            """,
+            (new_name, old_name),
+        )
+
+        conn.commit()
         cur.close()
         conn.close()
-        flash("New Envelope Type already exists.", "error")
+
+        flash("Envelope type name updated.", "success")
+        return redirect(url_for("envelopes_home"))
+
+    else:
+        cur.close()
+        conn.close()
+        flash("Invalid action.", "error")
         return redirect(url_for("edit_envelope_name"))
-
-    cur.execute(
-        """
-        UPDATE envelope_inventory
-        SET envelope_type=%s,
-            updated_at=NOW()
-        WHERE envelope_type=%s
-        """,
-        (new_name, old_name)
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    flash("Envelope type name updated.", "success")
-    return redirect(url_for("envelopes_home"))
-
 @app.route("/envelopes/update/<path:envelope_type>", methods=["POST"])
 @require_login
 @require_write
