@@ -10,7 +10,7 @@
       <select name="from_wh" id="from_wh" required>
         <option value="">Select source warehouse</option>
         {% for wh in warehouses %}
-          <option value="{{ wh }}">{{ wh }}</option>
+          <option value="{{ wh }}">{{ warehouse_label(wh) }}</option>
         {% endfor %}
       </select>
     </div>
@@ -20,15 +20,15 @@
       <select name="to_wh" id="to_wh" required onchange="updateLocations()">
         <option value="">Select destination warehouse</option>
         {% for wh in warehouses %}
-          <option value="{{ wh }}">{{ wh }}</option>
+          <option value="{{ wh }}">{{ warehouse_label(wh) }}</option>
         {% endfor %}
       </select>
     </div>
 
     <div class="form-row">
-      <label for="location">Destination Sub-Location</label>
+      <label for="location">Destination Row</label>
       <select name="location" id="location" required>
-        <option value="">Select destination sub-location</option>
+        <option value="">Select destination row</option>
       </select>
     </div>
 
@@ -58,7 +58,7 @@
     const wh = document.getElementById("to_wh").value;
     const locationSelect = document.getElementById("location");
 
-    locationSelect.innerHTML = '<option value="">Select destination sub-location</option>';
+    locationSelect.innerHTML = '<option value="">Select destination row</option>';
 
     let locations = [];
     if (wh === "WH1") {
