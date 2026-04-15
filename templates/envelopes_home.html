@@ -47,7 +47,6 @@
             <th>Envelope Type</th>
             <th>Pallet Count</th>
             <th>Actions</th>
-            <th>Last Updated</th>
           </tr>
         </thead>
         <tbody>
@@ -71,13 +70,12 @@
               </div>
               {% endif %}
             </td>
-            <td>{{ r.updated_at }}</td>
           </tr>
           {% endfor %}
 
           {% if not rows %}
           <tr>
-            <td colspan="4" class="hint" style="padding:16px;">
+            <td colspan="3" class="hint" style="padding:16px;">
               No envelope inventory yet.
             </td>
           </tr>
