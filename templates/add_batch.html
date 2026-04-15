@@ -35,15 +35,7 @@
           <select name="warehouse" id="warehouse" required onchange="updateLocations()">
             <option value="">Select warehouse</option>
             {% for wh in warehouses %}
-              <option value="{{ wh }}">
-                {% if wh == "WH1" %}
-                  Warehouse Mittera
-                {% elif wh == "WH2" %}
-                  Andrews Mittera
-                {% else %}
-                  {{ wh }}
-                {% endif %}
-              </option>
+              <option value="{{ wh }}">{{ warehouse_label(wh) }}</option>
             {% endfor %}
           </select>
         </div>
