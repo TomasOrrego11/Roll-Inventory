@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% set title = "Mittera Inventory" %}
+{% block content %}
+
+<div class="hero-card">
+  <div class="hero-copy">
+    <div class="eyebrow">MITTERA GROUP</div>
+    <h1 class="hero-title">Inventory Control Center</h1>
+    <p class="hero-text">
+      Select the inventory module you want to manage.
+    </p>
+  </div>
+
+  <div class="hero-metrics">
+    <div class="metric-card">
+      <div class="metric-label">System Mode</div>
+      <div class="metric-value">Live</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Modules</div>
+      <div class="metric-value">2 Active</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="section-head">
+    <div>
+      <div class="section-kicker">MODULE SELECTOR</div>
+      <h2 class="section-title">Choose inventory type</h2>
+    </div>
+  </div>
+
+  <div class="action-grid">
+    <a class="action-tile action-tile-primary" href="{{ url_for('rolls_home') }}">
+      <div class="action-tile-top">
+        <span class="action-badge">ROLLS</span>
+      </div>
+      <div class="action-title">Roll Inventory</div>
+      <div class="action-sub">
+        Manage rolls by warehouse, row, paper type, weight, and movement workflow.
+      </div>
+    </a>
+
+    <a class="action-tile" href="{{ url_for('envelopes_home') }}">
+      <div class="action-tile-top">
+        <span class="action-badge neutral">ENVELOPES</span>
+      </div>
+      <div class="action-title">Envelope Inventory</div>
+      <div class="action-sub">
+        Manage envelope types and total pallet counts in a simplified inventory view.
+      </div>
+    </a>
+  </div>
+</div>
+
+{% endblock %}
