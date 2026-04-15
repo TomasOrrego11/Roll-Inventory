@@ -14,7 +14,7 @@
       </div>
 
       <div class="panel-actions">
-        <a class="btn ghost" href="{{ url_for('inventory', warehouse=r.warehouse) }}">Back to {{ r.warehouse }}</a>
+        <a class="btn ghost" href="{{ url_for('inventory', warehouse=r.warehouse) }}">Back to {{ warehouse_label(r.warehouse) }}</a>
       </div>
     </div>
 
@@ -34,13 +34,13 @@
           <label>Warehouse</label>
           <select name="warehouse" id="warehouse" required>
             {% for w in warehouses %}
-              <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ w }}</option>
+              <option value="{{ w }}" {% if r.warehouse == w %}selected{% endif %}>{{ warehouse_label(w) }}</option>
             {% endfor %}
           </select>
         </div>
 
         <div>
-          <label>Sublocation</label>
+          <label>Row</label>
           <select name="location" id="location" required></select>
         </div>
       </div>
@@ -54,8 +54,8 @@
 
     <div class="row-actions">
       <form method="post" action="{{ url_for('delete_roll_pc', roll_id=r.roll_id) }}"
-            onsubmit="return confirm('Move to USED?');" style="margin:0;">
-        <button class="btn" type="submit">→ USED</button>
+            onsubmit="return confirm('Move to {{ warehouse_label("USED") }}?');" style="margin:0;">
+        <button class="btn" type="submit">→ {{ warehouse_label("USED") }}</button>
       </form>
 
       <form method="post"
