@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set title = "Envelope Inventory" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">ENVELOPE INVENTORY</div>
+        <h3>Envelope Inventory Summary</h3>
+        <div class="hint" style="margin-top:8px;">
+          Simple inventory by envelope type and pallet count.
+        </div>
+
+        <div class="stats-row" style="margin-top:12px;">
+          <span class="badge ok">Types: {{ totals.item_count }}</span>
+          <span class="badge warn">Total Pallets: {{ totals.total_pallets }}</span>
+          {% if not can_write() %}
+            <span class="badge">Read Only</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('home') }}">Modules</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">CURRENT STOCK</div>
+        <h2 class="section-title">Envelope Types</h2>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Envelope Type</th>
+            <th>Pallet Count</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.envelope_type }}</td>
+            <td>{{ r.pallet_count }}</td>
+            <td>{{ r.updated_at }}</td>
+          </tr>
+          {% endfor %}
+
+          {% if not rows %}
+          <tr>
+            <td colspan="3" class="hint" style="padding:16px;">
+              No envelope inventory yet.
+            </td>
+          </tr>
+          {% endif %}
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
