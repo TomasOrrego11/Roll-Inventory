@@ -44,10 +44,10 @@
       {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
     >
       <div class="action-tile-top">
-        <span class="action-badge">WH1</span>
+        <span class="action-badge">Warehouse Mittera</span>
       </div>
-      <div class="action-title">Add to Warehouse 1</div>
-      <div class="action-sub">Register new rolls directly into WH1</div>
+      <div class="action-title">Add to Warehouse Mittera</div>
+      <div class="action-sub">Register new rolls directly into Warehouse Mittera</div>
     </a>
 
     <a
@@ -56,10 +56,10 @@
       {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
     >
       <div class="action-tile-top">
-        <span class="action-badge">WH2</span>
+        <span class="action-badge">Andrews Mittera</span>
       </div>
-      <div class="action-title">Add to Warehouse 2</div>
-      <div class="action-sub">Register new rolls directly into WH2</div>
+      <div class="action-title">Add to Andrews Mittera</div>
+      <div class="action-sub">Register new rolls directly into Andrews Mittera</div>
     </a>
 
     <a
@@ -82,7 +82,7 @@
       <div class="action-tile-top">
         <span class="action-badge neutral">MOVE</span>
       </div>
-      <div class="action-title">Transfer WH1 → WH2</div>
+      <div class="action-title">Transfer Warehouse Mittera → Andrews Mittera</div>
       <div class="action-sub">Relocate inventory between main warehouse sites</div>
     </a>
 
@@ -94,8 +94,8 @@
       <div class="action-tile-top">
         <span class="action-badge neutral">MOVE</span>
       </div>
-      <div class="action-title">Transfer WH2 → WH1</div>
-      <div class="action-sub">Return or reassign inventory to Warehouse 1</div>
+      <div class="action-title">Transfer Andrews Mittera → Warehouse Mittera</div>
+      <div class="action-sub">Return or reassign inventory to Warehouse Mittera</div>
     </a>
 
     <a
@@ -104,10 +104,10 @@
       {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
     >
       <div class="action-tile-top">
-        <span class="action-badge warning">USED</span>
+        <span class="action-badge warning">IN USE</span>
       </div>
       <div class="action-title">Remove Roll</div>
-      <div class="action-sub">Move a single roll into USED status</div>
+      <div class="action-sub">Move a single roll into In Use Inventory status</div>
     </a>
 
     <a
@@ -119,7 +119,7 @@
         <span class="action-badge warning">BATCH</span>
       </div>
       <div class="action-title">Batch Remove</div>
-      <div class="action-sub">Move multiple scanned rolls into USED</div>
+      <div class="action-sub">Move multiple scanned rolls into In Use Inventory</div>
     </a>
 
     <a
@@ -131,7 +131,7 @@
         <span class="action-badge neutral">BATCH</span>
       </div>
       <div class="action-title">Batch Transfer</div>
-      <div class="action-sub">Move multiple scanned rolls to another warehouse or sub-location</div>
+      <div class="action-sub">Move multiple scanned rolls to another warehouse or row</div>
     </a>
 
     <a class="action-tile" href="{{ url_for('search') }}">
@@ -154,20 +154,20 @@
 
   <div class="inventory-grid">
     <a class="inventory-panel" href="{{ url_for('inventory', warehouse='WH1') }}">
-      <div class="inventory-panel-code">WH1</div>
-      <div class="inventory-panel-title">Warehouse 1</div>
+      <div class="inventory-panel-code">Warehouse Mittera</div>
+      <div class="inventory-panel-title">Warehouse Mittera</div>
       <div class="inventory-panel-sub">Open current live inventory</div>
     </a>
 
     <a class="inventory-panel" href="{{ url_for('inventory', warehouse='WH2') }}">
-      <div class="inventory-panel-code">WH2</div>
-      <div class="inventory-panel-title">Warehouse 2</div>
+      <div class="inventory-panel-code">Andrews Mittera</div>
+      <div class="inventory-panel-title">Andrews Mittera</div>
       <div class="inventory-panel-sub">Open current live inventory</div>
     </a>
 
     <a class="inventory-panel used" href="{{ url_for('inventory', warehouse='USED') }}">
-      <div class="inventory-panel-code">USED</div>
-      <div class="inventory-panel-title">Used Inventory</div>
+      <div class="inventory-panel-code">IN USE</div>
+      <div class="inventory-panel-title">In Use Inventory</div>
       <div class="inventory-panel-sub">Review removed rolls and cleanup status</div>
     </a>
   </div>
