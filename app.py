@@ -684,6 +684,73 @@ def inventory(warehouse):
     conn.close()
     return render_template("inventory.html", warehouse=warehouse, rows=rows, totals=totals)
 
+@app.route("/inventory-summary/<warehouse>")
+@require_login
+def inventory_summary(warehouse):
+    warehouse = clean(warehouse).upper()
+    if warehouse not in ALLOWED_WAREHOUSES:
+        flash("Invalid warehouse.", "error")
+        return redirect(url_for("home"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cols = get_table_cols(cur, "rolls")
+    paper_col, wh_col, weight_cols, loc_cols, _ = rolls_columns(cols)
+
+    weight_expr = "COALESCE(weight_lbs, weight)" if ("weight_lbs" in cols and "weight" in cols) else weight_cols[0]
+    loc_expr = "COALESCE(location, sublocation)" if ("location" in cols and "sublocation" in cols) else loc_cols[0]
+
+    cur.execute(
+        f"""
+        SELECT
+            {loc_expr} AS location,
+            {paper_col} AS paper_type,
+            COUNT(*) AS cnt,
+            COALESCE(SUM({weight_expr}), 0) AS total_weight
+        FROM rolls
+        WHERE {wh_col} = %s
+        GROUP BY {loc_expr}, {paper_col}
+        ORDER BY
+            CASE
+                WHEN {loc_expr} ~ '^[0-9]+$' THEN CAST({loc_expr} AS INTEGER)
+                ELSE 999
+            END,
+            {paper_col}
+        """,
+        (warehouse,),
+    )
+    rows = cur.fetchall() or []
+
+    cur.execute(
+        f"""
+        SELECT
+            COUNT(DISTINCT {loc_expr}) AS row_count,
+            COUNT(DISTINCT {paper_col}) AS paper_type_count,
+            COUNT(*) AS roll_count,
+            COALESCE(SUM({weight_expr}), 0) AS total_weight
+        FROM rolls
+        WHERE {wh_col} = %s
+        """,
+        (warehouse,),
+    )
+    totals = cur.fetchone() or {
+        "row_count": 0,
+        "paper_type_count": 0,
+        "roll_count": 0,
+        "total_weight": 0,
+    }
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "inventory_summary.html",
+        warehouse=warehouse,
+        rows=rows,
+        totals=totals,
+    )
+
 
 @app.route("/edit/<roll_id>", methods=["GET", "POST"])
 @require_login
