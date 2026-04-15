@@ -69,12 +69,14 @@
 
       btn.addEventListener("click", async () => {
         try {
-          if (!document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
-          } else {
+          if (document.fullscreenElement) {
             await document.exitFullscreen();
+          } else {
+            await document.documentElement.requestFullscreen();
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error("Fullscreen toggle failed:", e);
+        }
         updateText();
       });
 
