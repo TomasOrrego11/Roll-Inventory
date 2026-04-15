@@ -7,19 +7,18 @@ import psycopg2.extras
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
 app = Flask(__name__)
-# ===== VISUAL LABELS =====
+
 WAREHOUSE_LABELS = {
     "WH1": "Warehouse Mittera",
-    "WH2": "Andrews Mittera",
+    "WH2": "Warehouse Andrews",
     "USED": "In Use Inventory",
 }
 
 def warehouse_label(code):
     if not code:
         return ""
-    return WAREHOUSE_LABELS.get(code.upper(), code)
+    return WAREHOUSE_LABELS.get(str(code).upper().strip(), code)
 
-# hacer disponible en HTML
 app.jinja_env.globals.update(warehouse_label=warehouse_label)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
