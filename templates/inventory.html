@@ -31,6 +31,12 @@
             Add to {{ warehouse_label(warehouse) }}
           </a>
         {% endif %}
+
+        <!-- BOTÓN NUEVO -->
+        <a class="btn ghost" href="{{ url_for('inventory_summary', warehouse=warehouse) }}">
+          Summary View
+        </a>
+
         <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
       </div>
     </div>
