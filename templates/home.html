@@ -38,35 +38,30 @@
   </div>
 
   <div class="action-grid">
-    <a
-      class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('add_form', warehouse='WH1') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
+
+    <!-- ADD WH1 -->
+    <a class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('add_form', warehouse='WH1') }}{% else %}#{% endif %}">
       <div class="action-tile-top">
-        <span class="action-badge">Warehouse Mittera</span>
+        <span class="action-badge">{{ warehouse_label("WH1") }}</span>
       </div>
-      <div class="action-title">Add to Warehouse Mittera</div>
-      <div class="action-sub">Register new rolls directly into Warehouse Mittera</div>
+      <div class="action-title">Add to {{ warehouse_label("WH1") }}</div>
+      <div class="action-sub">Register new rolls directly into {{ warehouse_label("WH1") }}</div>
     </a>
 
-    <a
-      class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('add_form', warehouse='WH2') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
+    <!-- ADD WH2 -->
+    <a class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('add_form', warehouse='WH2') }}{% else %}#{% endif %}">
       <div class="action-tile-top">
-        <span class="action-badge">Andrews Mittera</span>
+        <span class="action-badge">{{ warehouse_label("WH2") }}</span>
       </div>
-      <div class="action-title">Add to Andrews Mittera</div>
-      <div class="action-sub">Register new rolls directly into Andrews Mittera</div>
+      <div class="action-title">Add to {{ warehouse_label("WH2") }}</div>
+      <div class="action-sub">Register new rolls directly into {{ warehouse_label("WH2") }}</div>
     </a>
 
-    <a
-      class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('add_batch_form') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
+    <!-- BATCH -->
+    <a class="action-tile action-tile-primary {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('add_batch_form') }}{% else %}#{% endif %}">
       <div class="action-tile-top">
         <span class="action-badge">BATCH</span>
       </div>
@@ -74,73 +69,51 @@
       <div class="action-sub">Paste and register multiple new rolls at once</div>
     </a>
 
-    <a
-      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
-      <div class="action-tile-top">
-        <span class="action-badge neutral">MOVE</span>
+    <!-- TRANSFER WH1 → WH2 -->
+    <a class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH1', to_wh='WH2') }}{% else %}#{% endif %}">
+      <div class="action-title">
+        Transfer {{ warehouse_label("WH1") }} → {{ warehouse_label("WH2") }}
       </div>
-      <div class="action-title">Transfer Warehouse Mittera → Andrews Mittera</div>
       <div class="action-sub">Relocate inventory between main warehouse sites</div>
     </a>
 
-    <a
-      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
-      <div class="action-tile-top">
-        <span class="action-badge neutral">MOVE</span>
+    <!-- TRANSFER WH2 → WH1 -->
+    <a class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('transfer_form', from_wh='WH2', to_wh='WH1') }}{% else %}#{% endif %}">
+      <div class="action-title">
+        Transfer {{ warehouse_label("WH2") }} → {{ warehouse_label("WH1") }}
       </div>
-      <div class="action-title">Transfer Andrews Mittera → Warehouse Mittera</div>
-      <div class="action-sub">Return or reassign inventory to Warehouse Mittera</div>
+      <div class="action-sub">Return or reassign inventory</div>
     </a>
 
-    <a
-      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('remove_form') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
-      <div class="action-tile-top">
-        <span class="action-badge warning">IN USE</span>
-      </div>
+    <!-- REMOVE -->
+    <a class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('remove_form') }}{% else %}#{% endif %}">
       <div class="action-title">Remove Roll</div>
-      <div class="action-sub">Move a single roll into In Use Inventory status</div>
+      <div class="action-sub">Move a roll into {{ warehouse_label("USED") }}</div>
     </a>
 
-    <a
-      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('remove_batch_form') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
-      <div class="action-tile-top">
-        <span class="action-badge warning">BATCH</span>
-      </div>
+    <!-- REMOVE BATCH -->
+    <a class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('remove_batch_form') }}{% else %}#{% endif %}">
       <div class="action-title">Batch Remove</div>
-      <div class="action-sub">Move multiple scanned rolls into In Use Inventory</div>
+      <div class="action-sub">Move multiple rolls into {{ warehouse_label("USED") }}</div>
     </a>
 
-    <a
-      class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
-      href="{% if can_write() %}{{ url_for('transfer_batch_form') }}{% else %}#{% endif %}"
-      {% if not can_write() %}onclick="return false;" aria-disabled="true"{% endif %}
-    >
-      <div class="action-tile-top">
-        <span class="action-badge neutral">BATCH</span>
-      </div>
+    <!-- TRANSFER BATCH -->
+    <a class="action-tile {% if not can_write() %}disabled-tile{% endif %}"
+       href="{% if can_write() %}{{ url_for('transfer_batch_form') }}{% else %}#{% endif %}">
       <div class="action-title">Batch Transfer</div>
-      <div class="action-sub">Move multiple scanned rolls to another warehouse or row</div>
+      <div class="action-sub">Move multiple rolls between warehouses</div>
     </a>
 
+    <!-- SEARCH -->
     <a class="action-tile" href="{{ url_for('search') }}">
-      <div class="action-tile-top">
-        <span class="action-badge neutral">SEARCH</span>
-      </div>
       <div class="action-title">Search Paper Type</div>
-      <div class="action-sub">Locate rolls by paper type and availability</div>
+      <div class="action-sub">Locate rolls by paper type</div>
     </a>
+
   </div>
 </div>
 
@@ -153,23 +126,19 @@
   </div>
 
   <div class="inventory-grid">
+
     <a class="inventory-panel" href="{{ url_for('inventory', warehouse='WH1') }}">
-      <div class="inventory-panel-code">Warehouse Mittera</div>
-      <div class="inventory-panel-title">Warehouse Mittera</div>
-      <div class="inventory-panel-sub">Open current live inventory</div>
+      <div class="inventory-panel-title">{{ warehouse_label("WH1") }}</div>
     </a>
 
     <a class="inventory-panel" href="{{ url_for('inventory', warehouse='WH2') }}">
-      <div class="inventory-panel-code">Andrews Mittera</div>
-      <div class="inventory-panel-title">Andrews Mittera</div>
-      <div class="inventory-panel-sub">Open current live inventory</div>
+      <div class="inventory-panel-title">{{ warehouse_label("WH2") }}</div>
     </a>
 
     <a class="inventory-panel used" href="{{ url_for('inventory', warehouse='USED') }}">
-      <div class="inventory-panel-code">IN USE</div>
-      <div class="inventory-panel-title">In Use Inventory</div>
-      <div class="inventory-panel-sub">Review removed rolls and cleanup status</div>
+      <div class="inventory-panel-title">{{ warehouse_label("USED") }}</div>
     </a>
+
   </div>
 </div>
 
