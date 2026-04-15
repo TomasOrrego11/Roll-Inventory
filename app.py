@@ -7,6 +7,20 @@ import psycopg2.extras
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
 app = Flask(__name__)
+# ===== VISUAL LABELS =====
+WAREHOUSE_LABELS = {
+    "WH1": "Warehouse Mittera",
+    "WH2": "Andrews Mittera",
+    "USED": "In Use Inventory",
+}
+
+def warehouse_label(code):
+    if not code:
+        return ""
+    return WAREHOUSE_LABELS.get(code.upper(), code)
+
+# hacer disponible en HTML
+app.jinja_env.globals.update(warehouse_label=warehouse_label)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me")
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
@@ -485,23 +499,6 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
-
-# ===== VISUAL LABELS (NO ROMPE DB) =====
-WAREHOUSE_LABELS = {
-    "WH1": "Warehouse Mittera",
-    "WH2": "Andrews Mittera",
-    "USED": "In Use Inventory",
-}
-
-def warehouse_label(code):
-    if not code:
-        return ""
-    return WAREHOUSE_LABELS.get(code.upper(), code)
-
-def row_label(text):
-    if not text:
-        return ""
-    return text.replace("Sub-Location", "Row").replace("Sublocation", "Row")
 
 @app.before_request
 def _ensure_db():
