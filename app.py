@@ -692,6 +692,60 @@ def add_envelope():
 
     return redirect(url_for("envelopes_home"))
 
+@app.route("/envelopes/update/<envelope_type>", methods=["POST"])
+@require_login
+@require_write
+def update_envelope_quantity(envelope_type):
+    envelope_type = clean(envelope_type).upper()
+    action = clean(request.form.get("action"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT pallet_count
+        FROM envelope_inventory
+        WHERE envelope_type = %s
+        """,
+        (envelope_type,),
+    )
+    row = cur.fetchone()
+
+    if not row:
+        cur.close()
+        conn.close()
+        flash("Envelope type not found.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    current = row["pallet_count"]
+
+    if action == "add":
+        new_value = current + 1
+    elif action == "remove":
+        new_value = max(0, current - 1)
+    else:
+        cur.close()
+        conn.close()
+        flash("Invalid action.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    cur.execute(
+        """
+        UPDATE envelope_inventory
+        SET pallet_count = %s,
+            updated_at = NOW()
+        WHERE envelope_type = %s
+        """,
+        (new_value, envelope_type),
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return redirect(url_for("envelopes_home"))
+
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
 @require_write
