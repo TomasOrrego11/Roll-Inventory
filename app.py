@@ -808,6 +808,64 @@ def use_envelopes():
     flash(f"Used {qty} pallet(s).", "success")
     return redirect(url_for("envelopes_home"))
 
+@app.route("/envelopes/edit-name", methods=["GET", "POST"])
+@require_login
+@require_write
+def edit_envelope_name():
+    if request.method == "GET":
+        return render_template("edit_envelope_name.html")
+
+    old_name = clean(request.form.get("old_name")).upper()
+    new_name = clean(request.form.get("new_name")).upper()
+
+    if not old_name or not new_name:
+        flash("Current Envelope Type and New Envelope Type are required.", "error")
+        return redirect(url_for("edit_envelope_name"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
+        (old_name,)
+    )
+    existing_old = cur.fetchone()
+
+    if not existing_old:
+        cur.close()
+        conn.close()
+        flash("Current Envelope Type not found.", "error")
+        return redirect(url_for("edit_envelope_name"))
+
+    cur.execute(
+        "SELECT id FROM envelope_inventory WHERE envelope_type=%s",
+        (new_name,)
+    )
+    existing_new = cur.fetchone()
+
+    if existing_new:
+        cur.close()
+        conn.close()
+        flash("New Envelope Type already exists.", "error")
+        return redirect(url_for("edit_envelope_name"))
+
+    cur.execute(
+        """
+        UPDATE envelope_inventory
+        SET envelope_type=%s,
+            updated_at=NOW()
+        WHERE envelope_type=%s
+        """,
+        (new_name, old_name)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Envelope type name updated.", "success")
+    return redirect(url_for("envelopes_home"))
+
 @app.route("/envelopes/update/<path:envelope_type>", methods=["POST"])
 @require_login
 @require_write
