@@ -9,7 +9,7 @@
         <div class="section-kicker">INTERNAL MOVEMENT</div>
         <h2 class="section-title">Transfer / Move Roll</h2>
         <p class="hint" style="margin-top:10px;">
-          You can transfer rolls between warehouses or move them to another sub-location inside the same warehouse.
+          You can transfer rolls between warehouses or move them to another row inside the same warehouse.
         </p>
       </div>
     </div>
@@ -20,7 +20,7 @@
           <label>From Warehouse</label>
           <select name="from_wh" id="from_wh" required>
             {% for w in warehouses %}
-              <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ w }}</option>
+              <option value="{{ w }}" {% if w == from_wh %}selected{% endif %}>{{ warehouse_label(w) }}</option>
             {% endfor %}
           </select>
         </div>
@@ -29,13 +29,13 @@
           <label>To Warehouse</label>
           <select name="to_wh" id="to_wh" required>
             {% for w in warehouses %}
-              <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ w }}</option>
+              <option value="{{ w }}" {% if w == to_wh %}selected{% endif %}>{{ warehouse_label(w) }}</option>
             {% endfor %}
           </select>
         </div>
 
         <div>
-          <label>Destination Sub-Location</label>
+          <label>Destination Row</label>
           <select name="location" id="location" required></select>
         </div>
 
