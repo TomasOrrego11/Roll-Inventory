@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% set title = "Remove Roll → USED" %}
+{% set title = "Remove Roll → " ~ warehouse_label("USED") %}
 {% block content %}
 
 <div class="section-block">
   <div class="card">
     <div class="section-head">
       <div>
-        <div class="section-kicker">USED WORKFLOW</div>
-        <h2 class="section-title">Remove Roll → USED</h2>
+        <div class="section-kicker">IN USE WORKFLOW</div>
+        <h2 class="section-title">Remove Roll → {{ warehouse_label("USED") }}</h2>
         <p class="hint" style="margin-top:10px;">
-          Scan or enter one Roll ID to move it into USED status.
+          Scan or enter one Roll ID to move it into {{ warehouse_label("USED") }}.
         </p>
       </div>
     </div>
@@ -19,7 +19,9 @@
       <input type="text" name="roll_id" id="roll_id" required autocomplete="off">
 
       <div class="form-actions" style="margin-top:16px;">
-        <button class="btn primary" type="submit">Move to USED</button>
+        <button class="btn primary" type="submit">
+          Move to {{ warehouse_label("USED") }}
+        </button>
         <a class="btn ghost" href="{{ url_for('home') }}">Back</a>
       </div>
     </form>
