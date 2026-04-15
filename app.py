@@ -692,7 +692,7 @@ def add_envelope():
 
     return redirect(url_for("envelopes_home"))
 
-@app.route("/envelopes/update/<envelope_type>", methods=["POST"])
+@app.route("/envelopes/update/<path:envelope_type>", methods=["POST"])
 @require_login
 @require_write
 def update_envelope_quantity(envelope_type):
