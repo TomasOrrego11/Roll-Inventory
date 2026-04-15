@@ -35,15 +35,23 @@
           <select name="warehouse" id="warehouse" required onchange="updateLocations()">
             <option value="">Select warehouse</option>
             {% for wh in warehouses %}
-              <option value="{{ wh }}">{{ wh }}</option>
+              <option value="{{ wh }}">
+                {% if wh == "WH1" %}
+                  Warehouse Mittera
+                {% elif wh == "WH2" %}
+                  Andrews Mittera
+                {% else %}
+                  {{ wh }}
+                {% endif %}
+              </option>
             {% endfor %}
           </select>
         </div>
 
         <div>
-          <label>Sub-Location</label>
+          <label>Row</label>
           <select name="location" id="location" required>
-            <option value="">Select sub-location</option>
+            <option value="">Select row</option>
           </select>
         </div>
       </div>
@@ -76,7 +84,7 @@ SW336A1128155, 2743"
     const warehouse = document.getElementById("warehouse").value;
     const locationSelect = document.getElementById("location");
 
-    locationSelect.innerHTML = '<option value="">Select sub-location</option>';
+    locationSelect.innerHTML = '<option value="">Select row</option>';
 
     let locations = [];
     if (warehouse === "WH1") {
