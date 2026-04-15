@@ -575,7 +575,47 @@ def logout():
 @app.route("/")
 @require_login
 def home():
+    return render_template("module_selector.html")
+
+
+@app.route("/rolls")
+@require_login
+def rolls_home():
     return render_template("home.html")
+
+
+@app.route("/envelopes")
+@require_login
+def envelopes_home():
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT
+            envelope_type,
+            pallet_count,
+            updated_at
+        FROM envelope_inventory
+        ORDER BY envelope_type
+        """
+    )
+    rows = cur.fetchall() or []
+
+    cur.execute(
+        """
+        SELECT
+            COUNT(*) AS item_count,
+            COALESCE(SUM(pallet_count), 0) AS total_pallets
+        FROM envelope_inventory
+        """
+    )
+    totals = cur.fetchone() or {"item_count": 0, "total_pallets": 0}
+
+    cur.close()
+    conn.close()
+
+    return render_template("envelopes_home.html", rows=rows, totals=totals)
 
 
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
