@@ -51,21 +51,22 @@
             <th>Total Weight (lbs)</th>
           </tr>
         </thead>
+
         <tbody>
-          {% set current_row = None %}
+          {% set ns = namespace(current_row=None) %}
 
           {% for r in rows %}
 
-            {% if r.location != current_row %}
-              <tr>
-                <td colspan="3" style="background:#0f172a; color:white; font-weight:700; padding:10px 14px;">
-                  Row {{ r.location }}
+            {% if r.location != ns.current_row %}
+              <tr class="row-header" data-row="{{ r.location }}">
+                <td colspan="3" style="background:#0f172a; color:white; font-weight:700; padding:10px 14px; cursor:pointer;">
+                  ▶ Row {{ r.location }}
                 </td>
               </tr>
-              {% set current_row = r.location %}
+              {% set ns.current_row = r.location %}
             {% endif %}
 
-            <tr>
+            <tr class="row-content row-{{ r.location }}" style="display:none;">
               <td>{{ r.paper_type }}</td>
               <td>{{ r.cnt }}</td>
               <td>{{ r.total_weight }}</td>
@@ -85,5 +86,24 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".row-header").forEach(header => {
+      header.addEventListener("click", function () {
+        const row = this.getAttribute("data-row");
+        const rows = document.querySelectorAll(".row-" + row);
+        const isHidden = rows[0].style.display === "none";
+
+        rows.forEach(r => {
+          r.style.display = isHidden ? "table-row" : "none";
+        });
+
+        this.querySelector("td").textContent =
+          (isHidden ? "▼ " : "▶ ") + "Row " + row;
+      });
+    });
+  });
+</script>
 
 {% endblock %}
