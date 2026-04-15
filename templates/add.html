@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set title = "Add Roll - " ~ warehouse %}
+{% set title = "Add Roll - " ~ warehouse_label(warehouse) %}
 {% block content %}
 
 <div class="section-block">
@@ -7,14 +7,14 @@
     <div class="panel-head">
       <div>
         <div class="section-kicker">ROLL INTAKE</div>
-        <h3>Add Roll — {{ warehouse }}</h3>
+        <h3>Add Roll — {{ warehouse_label(warehouse) }}</h3>
         <div class="hint" style="margin-top:8px;">
-          Fast scanner workflow. Enter moves field-to-field and the selected sub-location stays saved until changed.
+          Fast scanner workflow. Enter moves field-to-field and the selected row stays saved until changed.
         </div>
       </div>
 
       <div class="panel-actions">
-        <a class="btn ghost" href="{{ url_for('inventory', warehouse=warehouse) }}">View {{ warehouse }}</a>
+        <a class="btn ghost" href="{{ url_for('inventory', warehouse=warehouse) }}">View {{ warehouse_label(warehouse) }}</a>
       </div>
     </div>
 
@@ -36,14 +36,14 @@
         </div>
 
         <div>
-          <label>Sub-Location (saved)</label>
+          <label>Row (saved)</label>
           <select name="location" required>
             {% for l in locations %}
               <option value="{{ l }}">{{ l }}</option>
             {% endfor %}
           </select>
           <div class="hint" style="margin-top:6px;">
-            Tip: change location once, then keep scanning rolls.
+            Tip: change row once, then keep scanning rolls.
           </div>
         </div>
       </div>
