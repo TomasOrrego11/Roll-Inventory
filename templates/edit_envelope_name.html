@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set title = "Edit Envelope Name" %}
+{% set title = "Manage Envelope Types" %}
 {% block content %}
 
 <div class="section-block">
@@ -7,9 +7,9 @@
     <div class="panel-head">
       <div>
         <div class="section-kicker">ENVELOPE INVENTORY</div>
-        <h3>Edit Envelope Name</h3>
+        <h3>Manage Envelope Types</h3>
         <div class="hint" style="margin-top:8px;">
-          Rename an existing envelope type if it was entered incorrectly.
+          Add a new envelope type or rename an existing one.
         </div>
       </div>
 
@@ -22,20 +22,52 @@
 
 <div class="section-block">
   <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">ADD NEW TYPE</div>
+        <h2 class="section-title">Create Envelope Type</h2>
+      </div>
+    </div>
+
     <form method="POST" class="form-grid">
+      <input type="hidden" name="mode" value="add">
+
+      <div class="form-group">
+        <label>New Envelope Type</label>
+        <input type="text" name="new_name" placeholder="e.g. C-FSC" required>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button class="btn primary" type="submit">Add Type</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">RENAME TYPE</div>
+        <h2 class="section-title">Edit Existing Name</h2>
+      </div>
+    </div>
+
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="mode" value="rename">
+
       <div class="form-group">
         <label>Current Envelope Type</label>
-        <input type="text" name="old_name" placeholder="e.g. C/FSC" required>
+        <input type="text" name="old_name" placeholder="e.g. C-FSC" required>
       </div>
 
       <div class="form-group">
         <label>New Envelope Type</label>
-        <input type="text" name="new_name" placeholder="e.g. C/FSC WHITE" required>
+        <input type="text" name="rename_to" placeholder="e.g. C-FSC-WHITE" required>
       </div>
 
       <div style="margin-top:16px;">
         <button class="btn primary" type="submit">Save New Name</button>
-        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Cancel</a>
       </div>
     </form>
   </div>
