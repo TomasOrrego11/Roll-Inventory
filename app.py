@@ -628,6 +628,69 @@ def envelopes_home():
 
     return render_template("envelopes_home.html", rows=rows, totals=totals)
 
+@app.route("/envelopes/add", methods=["GET", "POST"])
+@require_login
+@require_write
+def add_envelope():
+    if request.method == "GET":
+        return render_template("add_envelope.html")
+
+    envelope_type = clean(request.form.get("envelope_type")).upper()
+    pallet_raw = clean(request.form.get("pallet_count"))
+
+    if not envelope_type:
+        flash("Envelope Type is required.", "error")
+        return redirect(url_for("add_envelope"))
+
+    try:
+        pallet_count = int(pallet_raw)
+    except Exception:
+        flash("Pallet Count must be a whole number.", "error")
+        return redirect(url_for("add_envelope"))
+
+    if pallet_count < 0:
+        flash("Pallet Count cannot be negative.", "error")
+        return redirect(url_for("add_envelope"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT id
+        FROM envelope_inventory
+        WHERE envelope_type = %s
+        """,
+        (envelope_type,),
+    )
+    existing = cur.fetchone()
+
+    if existing:
+        cur.execute(
+            """
+            UPDATE envelope_inventory
+            SET pallet_count = %s,
+                updated_at = NOW()
+            WHERE envelope_type = %s
+            """,
+            (pallet_count, envelope_type),
+        )
+        flash("Envelope inventory updated.", "success")
+    else:
+        cur.execute(
+            """
+            INSERT INTO envelope_inventory (envelope_type, pallet_count)
+            VALUES (%s, %s)
+            """,
+            (envelope_type, pallet_count),
+        )
+        flash("Envelope inventory added.", "success")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return redirect(url_for("envelopes_home"))
 
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
