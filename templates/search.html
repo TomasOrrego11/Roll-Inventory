@@ -19,7 +19,7 @@
     </div>
 
     <form method="get" autocomplete="off" style="margin-top:14px;">
-      <label>Search PaperType (partial is ok)</label>
+      <label>Search Paper Type (partial is ok)</label>
       <input name="q" value="{{ q }}" placeholder="e.g., FSC38" autofocus>
       <div class="form-actions" style="margin-top:14px;">
         <button class="btn primary" type="submit">Search</button>
@@ -39,7 +39,7 @@
     </div>
 
     {% if matches|length == 0 %}
-      <p class="muted">No PaperType matches found.</p>
+      <p class="muted">No Paper Type matches found.</p>
     {% else %}
       <ul class="results-list">
         {% for m in matches %}
@@ -59,95 +59,95 @@
     <div class="section-head">
       <div>
         <div class="section-kicker">PAPER TYPE DETAIL</div>
-        <h2 class="section-title">Rolls for PaperType: {{ selected }}</h2>
+        <h2 class="section-title">Rolls for Paper Type: {{ selected }}</h2>
       </div>
     </div>
 
     {% if totals %}
       <div class="stats-row" style="margin-bottom:16px;">
         <span class="badge">Total: {{ totals.cnt }}</span>
-        <span class="badge">WH1: {{ totals.wh1_cnt }}</span>
-        <span class="badge">WH2: {{ totals.wh2_cnt }}</span>
+        <span class="badge">{{ warehouse_label("WH1") }}: {{ totals.wh1_cnt }}</span>
+        <span class="badge">{{ warehouse_label("WH2") }}: {{ totals.wh2_cnt }}</span>
         <span class="badge">CONSUMED: {{ totals.consumed_cnt }}</span>
-        <span class="badge">USED: {{ totals.used_cnt }}</span>
+        <span class="badge">{{ warehouse_label("USED") }}: {{ totals.used_cnt }}</span>
         <span class="badge warn">Total lbs: {{ totals.total_weight }}</span>
       </div>
     {% endif %}
 
     {% if warehouse_weight_summary|length > 0 %}
-  <div class="card" style="margin-top:14px;">
-    <div class="section-head">
-      <div>
-        <div class="section-kicker">WEIGHT BY WAREHOUSE</div>
-        <h3 class="section-title">Warehouse Weight Summary</h3>
+    <div class="card" style="margin-top:14px;">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">WEIGHT BY WAREHOUSE</div>
+          <h3 class="section-title">Warehouse Weight Summary</h3>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Warehouse</th>
+              <th>Roll Count</th>
+              <th>Total Weight (lbs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in warehouse_weight_summary %}
+              <tr>
+                <td>{{ warehouse_label(row.warehouse) }}</td>
+                <td>{{ row.cnt }}</td>
+                <td>{{ row.total_weight }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Warehouse</th>
-            <th>Roll Count</th>
-            <th>Total Weight (lbs)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in warehouse_weight_summary %}
-            <tr>
-              <td>{{ row.warehouse }}</td>
-              <td>{{ row.cnt }}</td>
-              <td>{{ row.total_weight }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-{% endif %}
+    {% endif %}
 
     {% if sublocation_summary|length > 0 %}
-  <div class="card" style="margin-top:14px;">
-    <div class="section-head">
-      <div>
-        <div class="section-kicker">ROLLS BY SUBLOCATION</div>
-        <h3 class="section-title">Sublocation Summary</h3>
+    <div class="card" style="margin-top:14px;">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">ROLLS BY ROW</div>
+          <h3 class="section-title">Row Summary</h3>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Warehouse</th>
+              <th>Row</th>
+              <th>Roll Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sublocation_summary %}
+              <tr>
+                <td>{{ warehouse_label(row.warehouse) }}</td>
+                <td>{{ row.sublocation }}</td>
+                <td>{{ row.cnt }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Warehouse</th>
-            <th>Sublocation</th>
-            <th>Roll Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in sublocation_summary %}
-            <tr>
-              <td>{{ row.warehouse }}</td>
-              <td>{{ row.sublocation }}</td>
-              <td>{{ row.cnt }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-{% endif %}
+    {% endif %}
 
     {% if rolls|length == 0 %}
-      <p class="muted">No rolls found for this PaperType.</p>
+      <p class="muted">No rolls found for this Paper Type.</p>
     {% else %}
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>RollID</th>
+              <th>Roll ID</th>
               <th>Warehouse</th>
-              <th>Subloc</th>
+              <th>Row</th>
               <th>Weight (lbs)</th>
             </tr>
           </thead>
@@ -155,7 +155,7 @@
             {% for r in rolls %}
               <tr>
                 <td>{{ r.roll_id }}</td>
-                <td>{{ r.warehouse }}</td>
+                <td>{{ warehouse_label(r.warehouse) }}</td>
                 <td>{{ r.sublocation }}</td>
                 <td>{{ r.weight_lbs }}</td>
               </tr>
