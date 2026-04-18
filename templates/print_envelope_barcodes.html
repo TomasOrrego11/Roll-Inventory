@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% set title = "Print Envelope Barcodes" %}
+{% block content %}
+
+<div class="section-block no-print">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">PRINT LABELS</div>
+        <h3>Envelope Barcode Labels</h3>
+        <div class="hint" style="margin-top:8px;">
+          One page per pallet. Print on regular paper and attach each sheet to a pallet.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button class="btn primary" onclick="window.print()">Print</button>
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% for p in pallets %}
+<div class="label-page">
+  <div class="label-sheet">
+    <div class="label-envelope-type">
+      {{ p.envelope_type }}
+    </div>
+
+    <div class="barcode-wrap">
+      <svg class="barcode"
+           jsbarcode-value="{{ p.pallet_id }}"
+           jsbarcode-format="CODE128"
+           jsbarcode-width="2"
+           jsbarcode-height="90"
+           jsbarcode-displayvalue="false">
+      </svg>
+    </div>
+
+    <div class="label-manual-id">
+      {{ p.pallet_id }}
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<style>
+  .label-page {
+    page-break-after: always;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px 0;
+  }
+
+  .label-sheet {
+    width: 8.5in;
+    min-height: 10.5in;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 40px;
+  }
+
+  .label-envelope-type {
+    font-size: 34px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 36px;
+    letter-spacing: 0.5px;
+  }
+
+  .barcode-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 22px;
+    width: 100%;
+  }
+
+  .barcode {
+    max-width: 100%;
+  }
+
+  .label-manual-id {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  @media print {
+    .no-print,
+    .topbar,
+    .flash-wrap,
+    .page-shell {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      background: white;
+    }
+
+    .main-container {
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .section-block,
+    .card {
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      background: transparent !important;
+    }
+
+    .label-page {
+      page-break-after: always;
+      min-height: auto;
+      padding: 0;
+    }
+
+    .label-sheet {
+      width: 100%;
+      min-height: 100vh;
+      padding: 40px;
+    }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".barcode").forEach(function (el) {
+      JsBarcode(el, el.getAttribute("jsbarcode-value"), {
+        format: el.getAttribute("jsbarcode-format") || "CODE128",
+        width: parseFloat(el.getAttribute("jsbarcode-width")) || 2,
+        height: parseFloat(el.getAttribute("jsbarcode-height")) || 90,
+        displayValue: false,
+        margin: 10
+      });
+    });
+  });
+</script>
+
+{% endblock %}
