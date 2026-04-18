@@ -1270,6 +1270,39 @@ def delete_envelope_type(envelope_type):
     flash("Envelope type and all its pallets were deleted.", "success")
     return redirect(url_for("envelopes_home"))
 
+@app.route("/envelopes/type/<path:envelope_type>/reprint")
+@require_login
+@require_write
+def reprint_envelope_barcodes(envelope_type):
+    envelope_type = clean_envelope_name(envelope_type)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT pallet_id, envelope_type, type_prefix
+        FROM envelope_pallets
+        WHERE envelope_type = %s
+        ORDER BY pallet_id
+        """,
+        (envelope_type,),
+    )
+    pallets = cur.fetchall() or []
+
+    cur.close()
+    conn.close()
+
+    if not pallets:
+        flash("No pallets found for this envelope type.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    return render_template(
+        "print_envelope_barcodes.html",
+        envelope_type=envelope_type,
+        pallets=pallets,
+    )
+
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
 @require_write
