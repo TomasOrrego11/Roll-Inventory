@@ -1,5 +1,6 @@
 import os
 import re
+import unicodedata
 from functools import wraps
 
 import psycopg2
@@ -46,6 +47,56 @@ app.jinja_env.globals["locations_for"] = locations_for
 
 def clean(s: str) -> str:
     return (s or "").strip()
+
+def clean_envelope_name(s: str) -> str:
+    s = (s or "").strip().upper()
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    s = s.replace("/", " ")
+    s = re.sub(r"[^A-Z0-9 ]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def envelope_type_prefix(envelope_type: str) -> str:
+    """
+    Convierte el nombre del sobre en un prefijo corto y estable.
+    Ejemplos:
+    'C FSC' -> 'CFSC'
+    '9X12 WHITE KRAFT' -> '9X12WHITEK'
+    """
+    cleaned = clean_envelope_name(envelope_type)
+    compact = cleaned.replace(" ", "")
+
+    if not compact:
+        return "ENV"
+
+    # máximo 10 caracteres para que el ID no quede larguísimo
+    return compact[:10]
+
+
+def next_envelope_pallet_id(cur, envelope_type: str) -> str:
+    prefix = envelope_type_prefix(envelope_type)
+
+    cur.execute(
+        """
+        SELECT pallet_id
+        FROM envelope_pallets
+        WHERE pallet_id LIKE %s
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (f"{prefix}-%",),
+    )
+    row = cur.fetchone()
+
+    last_num = 0
+    if row and row.get("pallet_id"):
+        m = re.search(r"-(\d+)$", row["pallet_id"])
+        if m:
+            last_num = int(m.group(1))
+
+    new_num = last_num + 1
+    return f"{prefix}-{str(new_num).zfill(4)}"
 
 
 def parse_weight(s: str):
