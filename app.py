@@ -555,6 +555,18 @@ def init_db():
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         """
+
+                cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS envelope_pallets (
+            id BIGSERIAL PRIMARY KEY,
+            pallet_id TEXT NOT NULL UNIQUE,
+            envelope_type TEXT NOT NULL,
+            type_prefix TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'IN_STOCK',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
     )
         
     conn.commit()
