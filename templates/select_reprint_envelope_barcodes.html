@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set title = "Select Barcodes to Reprint" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">REPRINT LABELS</div>
+        <h3>Select Pallets to Reprint — {{ envelope_type }}</h3>
+        <div class="hint" style="margin-top:8px;">
+          Choose only the pallets you want to reprint.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('envelope_type_detail', envelope_type=envelope_type) }}">Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <form method="POST">
+      <div class="form-actions" style="margin-bottom:14px;">
+        <button type="button" class="btn ghost" onclick="toggleAll(true)">Select All</button>
+        <button type="button" class="btn ghost" onclick="toggleAll(false)">Clear</button>
+        <button class="btn primary" type="submit">Open Print View</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Pallet ID</th>
+              <th>Status</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in pallets %}
+            <tr>
+              <td>
+                <input type="checkbox" name="pallet_ids" value="{{ p.pallet_id }}">
+              </td>
+              <td><strong>{{ p.pallet_id }}</strong></td>
+              <td>{{ p.status }}</td>
+              <td>{{ p.created_at }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleAll(checked) {
+    document.querySelectorAll('input[name="pallet_ids"]').forEach(el => {
+      el.checked = checked;
+    });
+  }
+</script>
+
+{% endblock %}
