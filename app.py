@@ -1120,6 +1120,156 @@ def update_envelope_quantity(envelope_type):
 
     return redirect(url_for("envelopes_home"))
 
+@app.route("/envelopes/type/<path:envelope_type>")
+@require_login
+def envelope_type_detail(envelope_type):
+    envelope_type = clean_envelope_name(envelope_type)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT envelope_type, pallet_count, updated_at
+        FROM envelope_inventory
+        WHERE envelope_type = %s
+        """,
+        (envelope_type,),
+    )
+    summary = cur.fetchone()
+
+    if not summary:
+        cur.close()
+        conn.close()
+        flash("Envelope type not found.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    cur.execute(
+        """
+        SELECT pallet_id, status, created_at
+        FROM envelope_pallets
+        WHERE envelope_type = %s
+        ORDER BY pallet_id
+        """,
+        (envelope_type,),
+    )
+    pallets = cur.fetchall() or []
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "envelope_type_detail.html",
+        summary=summary,
+        pallets=pallets,
+    )
+
+
+@app.route("/envelopes/type/<path:envelope_type>/rename", methods=["POST"])
+@require_login
+@require_write
+def rename_envelope_type(envelope_type):
+    old_name = clean_envelope_name(envelope_type)
+    new_name = clean_envelope_name(request.form.get("new_name"))
+
+    if not new_name:
+        flash("New Envelope Type is required.", "error")
+        return redirect(url_for("envelope_type_detail", envelope_type=old_name))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT id FROM envelope_inventory WHERE envelope_type = %s",
+        (old_name,),
+    )
+    existing_old = cur.fetchone()
+
+    if not existing_old:
+        cur.close()
+        conn.close()
+        flash("Envelope type not found.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    cur.execute(
+        "SELECT id FROM envelope_inventory WHERE envelope_type = %s",
+        (new_name,),
+    )
+    existing_new = cur.fetchone()
+
+    if existing_new:
+        cur.close()
+        conn.close()
+        flash("That envelope type already exists.", "error")
+        return redirect(url_for("envelope_type_detail", envelope_type=old_name))
+
+    new_prefix = envelope_type_prefix(new_name)
+
+    cur.execute(
+        """
+        UPDATE envelope_inventory
+        SET envelope_type = %s,
+            updated_at = NOW()
+        WHERE envelope_type = %s
+        """,
+        (new_name, old_name),
+    )
+
+    cur.execute(
+        """
+        UPDATE envelope_pallets
+        SET envelope_type = %s,
+            type_prefix = %s
+        WHERE envelope_type = %s
+        """,
+        (new_name, new_prefix, old_name),
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Envelope type renamed.", "success")
+    return redirect(url_for("envelope_type_detail", envelope_type=new_name))
+
+
+@app.route("/envelopes/type/<path:envelope_type>/delete", methods=["POST"])
+@require_login
+@require_write
+def delete_envelope_type(envelope_type):
+    envelope_type = clean_envelope_name(envelope_type)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT id FROM envelope_inventory WHERE envelope_type = %s",
+        (envelope_type,),
+    )
+    existing = cur.fetchone()
+
+    if not existing:
+        cur.close()
+        conn.close()
+        flash("Envelope type not found.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    cur.execute(
+        "DELETE FROM envelope_pallets WHERE envelope_type = %s",
+        (envelope_type,),
+    )
+    cur.execute(
+        "DELETE FROM envelope_inventory WHERE envelope_type = %s",
+        (envelope_type,),
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("Envelope type and all its pallets were deleted.", "success")
+    return redirect(url_for("envelopes_home"))
+
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
 @require_write
