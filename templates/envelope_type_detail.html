@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% set title = "Envelope Type Detail" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">ENVELOPE DETAIL</div>
+        <h3>{{ summary.envelope_type }}</h3>
+        <div class="hint" style="margin-top:8px;">
+          Detailed view of this envelope type and all pallets assigned to it.
+        </div>
+
+        <div class="stats-row" style="margin-top:12px;">
+          <span class="badge ok">Total Pallets: {{ summary.pallet_count }}</span>
+          {% if not can_write() %}
+            <span class="badge">Read Only</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if can_write() %}
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">ADMIN ACTIONS</div>
+        <h2 class="section-title">Manage This Type</h2>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <form method="POST" action="{{ url_for('rename_envelope_type', envelope_type=summary.envelope_type) }}">
+          <label>Rename Envelope Type</label>
+          <input type="text" name="new_name" placeholder="Enter new envelope type name" required>
+
+          <div class="form-actions" style="margin-top:12px;">
+            <button class="btn primary" type="submit">Save New Name</button>
+          </div>
+        </form>
+      </div>
+
+      <div>
+        <form method="POST"
+              action="{{ url_for('delete_envelope_type', envelope_type=summary.envelope_type) }}"
+              onsubmit="return confirm('Delete this envelope type and all its pallets? This cannot be undone.');">
+          <label>Delete This Type</label>
+          <div class="hint" style="margin-top:6px;">
+            This will remove the envelope type and every pallet associated with it.
+          </div>
+
+          <div class="form-actions" style="margin-top:12px;">
+            <button class="btn danger" type="submit">Delete Type</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">PALLET REGISTER</div>
+        <h2 class="section-title">Pallet IDs</h2>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Pallet ID</th>
+            <th>Status</th>
+            <th>Created At</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for p in pallets %}
+          <tr>
+            <td><strong>{{ p.pallet_id }}</strong></td>
+            <td>{{ p.status }}</td>
+            <td>{{ p.created_at }}</td>
+          </tr>
+          {% endfor %}
+
+          {% if not pallets %}
+          <tr>
+            <td colspan="3" class="hint" style="padding:16px;">
+              No pallets found for this envelope type.
+            </td>
+          </tr>
+          {% endif %}
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
