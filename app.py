@@ -975,6 +975,96 @@ def edit_envelope_name():
         conn.close()
         flash("Invalid action.", "error")
         return redirect(url_for("edit_envelope_name"))
+
+@app.route("/envelopes/generate", methods=["GET", "POST"])
+@require_login
+@require_write
+def generate_envelope_barcodes():
+    if request.method == "GET":
+        return render_template("generate_envelope_barcodes.html")
+
+    envelope_type_raw = request.form.get("envelope_type")
+    qty_raw = clean(request.form.get("quantity"))
+
+    envelope_type = clean_envelope_name(envelope_type_raw)
+
+    if not envelope_type:
+        flash("Envelope Type is required.", "error")
+        return redirect(url_for("generate_envelope_barcodes"))
+
+    try:
+        qty = int(qty_raw)
+    except Exception:
+        flash("Quantity must be a whole number.", "error")
+        return redirect(url_for("generate_envelope_barcodes"))
+
+    if qty <= 0:
+        flash("Quantity must be greater than 0.", "error")
+        return redirect(url_for("generate_envelope_barcodes"))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    created_pallets = []
+    prefix = envelope_type_prefix(envelope_type)
+
+    for _ in range(qty):
+        pallet_id = next_envelope_pallet_id(cur, envelope_type)
+
+        cur.execute(
+            """
+            INSERT INTO envelope_pallets (pallet_id, envelope_type, type_prefix, status)
+            VALUES (%s, %s, %s, 'IN_STOCK')
+            """,
+            (pallet_id, envelope_type, prefix),
+        )
+
+        created_pallets.append({
+            "pallet_id": pallet_id,
+            "envelope_type": envelope_type,
+            "type_prefix": prefix,
+        })
+
+    cur.execute(
+        """
+        SELECT pallet_count
+        FROM envelope_inventory
+        WHERE envelope_type = %s
+        """,
+        (envelope_type,),
+    )
+    existing = cur.fetchone()
+
+    if existing:
+        new_total = existing["pallet_count"] + qty
+        cur.execute(
+            """
+            UPDATE envelope_inventory
+            SET pallet_count = %s,
+                updated_at = NOW()
+            WHERE envelope_type = %s
+            """,
+            (new_total, envelope_type),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO envelope_inventory (envelope_type, pallet_count)
+            VALUES (%s, %s)
+            """,
+            (envelope_type, qty),
+        )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "print_envelope_barcodes.html",
+        envelope_type=envelope_type,
+        pallets=created_pallets,
+    )
+    
 @app.route("/envelopes/update/<path:envelope_type>", methods=["POST"])
 @require_login
 @require_write
