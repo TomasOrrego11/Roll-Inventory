@@ -546,7 +546,7 @@ def init_db():
         cur.execute("UPDATE movements SET moved_at=NOW() WHERE moved_at IS NULL;")
         cur.execute("ALTER TABLE movements ALTER COLUMN moved_at SET DEFAULT NOW();")
 
-        cur.execute(
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS envelope_inventory (
             id BIGSERIAL PRIMARY KEY,
@@ -555,8 +555,9 @@ def init_db():
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         """
+    )
 
-                cur.execute(
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS envelope_pallets (
             id BIGSERIAL PRIMARY KEY,
