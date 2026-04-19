@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set title = "Envelope Used Inventory" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">USED INVENTORY</div>
+        <h3>Envelope Used Inventory</h3>
+        <div class="hint" style="margin-top:8px;">
+          View all used envelope pallets grouped by type.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <div class="section-kicker">USED PALLETS</div>
+        <h2 class="section-title">Grouped by Envelope Type</h2>
+      </div>
+    </div>
+
+    {% set ns = namespace(current_type=None) %}
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Pallet ID</th>
+            <th>Status</th>
+            <th>Created At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pallets %}
+            {% if p.envelope_type != ns.current_type %}
+              <tr class="row-header" data-type="{{ p.envelope_type|replace(' ', '_') }}">
+                <td colspan="3" style="background:#0f172a; color:white; font-weight:700; padding:10px 14px; cursor:pointer;">
+                  ▶ {{ p.envelope_type }}
+                </td>
+              </tr>
+              {% set ns.current_type = p.envelope_type %}
+            {% endif %}
+
+            <tr class="row-content type-{{ p.envelope_type|replace(' ', '_') }}" style="display:none;">
+              <td><strong>{{ p.pallet_id }}</strong></td>
+              <td>{{ p.status }}</td>
+              <td>{{ p.created_at }}</td>
+            </tr>
+          {% endfor %}
+
+          {% if not pallets %}
+          <tr>
+            <td colspan="3" class="hint" style="padding:16px;">
+              No used envelope pallets found.
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".row-header").forEach(header => {
+      header.addEventListener("click", function () {
+        const type = this.getAttribute("data-type");
+        const rows = document.querySelectorAll(".type-" + type);
+        const isHidden = rows.length ? rows[0].style.display === "none" : false;
+
+        rows.forEach(r => {
+          r.style.display = isHidden ? "table-row" : "none";
+        });
+
+        this.querySelector("td").textContent =
+          (isHidden ? "▼ " : "▶ ") + this.getAttribute("data-type").replaceAll("_", " ");
+      });
+    });
+  });
+</script>
+
+{% endblock %}
