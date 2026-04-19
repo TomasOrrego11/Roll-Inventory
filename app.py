@@ -1004,12 +1004,27 @@ def generate_envelope_barcodes():
         flash("Quantity must be greater than 0.", "error")
         return redirect(url_for("generate_envelope_barcodes"))
 
-    conn = get_conn()
+       conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT envelope_type
+        FROM envelope_inventory
+        WHERE envelope_type = %s
+        """,
+        (envelope_type,),
+    )
+    existing_type = cur.fetchone()
+
+    if not existing_type:
+        cur.close()
+        conn.close()
+        flash("Envelope Type does not exist. Please create it first in Manage Types.", "error")
+        return redirect(url_for("generate_envelope_barcodes"))
 
     created_pallets = []
     prefix = envelope_type_prefix(envelope_type)
-
     for _ in range(qty):
         pallet_id = next_envelope_pallet_id(cur, envelope_type)
 
@@ -1027,35 +1042,15 @@ def generate_envelope_barcodes():
             "type_prefix": prefix,
         })
 
-    cur.execute(
+        cur.execute(
         """
-        SELECT pallet_count
-        FROM envelope_inventory
+        UPDATE envelope_inventory
+        SET pallet_count = pallet_count + %s,
+            updated_at = NOW()
         WHERE envelope_type = %s
         """,
-        (envelope_type,),
+        (qty, envelope_type),
     )
-    existing = cur.fetchone()
-
-    if existing:
-        new_total = existing["pallet_count"] + qty
-        cur.execute(
-            """
-            UPDATE envelope_inventory
-            SET pallet_count = %s,
-                updated_at = NOW()
-            WHERE envelope_type = %s
-            """,
-            (new_total, envelope_type),
-        )
-    else:
-        cur.execute(
-            """
-            INSERT INTO envelope_inventory (envelope_type, pallet_count)
-            VALUES (%s, %s)
-            """,
-            (envelope_type, qty),
-        )
 
     conn.commit()
     cur.close()
