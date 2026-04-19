@@ -1270,6 +1270,69 @@ def delete_envelope_type(envelope_type):
     flash("Envelope type and all its pallets were deleted.", "success")
     return redirect(url_for("envelopes_home"))
 
+@app.route("/envelopes/type/<path:envelope_type>/backfill", methods=["POST"])
+@require_login
+@require_write
+def backfill_envelope_type(envelope_type):
+    envelope_type = clean_envelope_name(envelope_type)
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT envelope_type, pallet_count
+        FROM envelope_inventory
+        WHERE envelope_type = %s
+        """,
+        (envelope_type,),
+    )
+    summary = cur.fetchone()
+
+    if not summary:
+        cur.close()
+        conn.close()
+        flash("Envelope type not found.", "error")
+        return redirect(url_for("envelopes_home"))
+
+    cur.execute(
+        """
+        SELECT COUNT(*) AS cnt
+        FROM envelope_pallets
+        WHERE envelope_type = %s
+          AND status = 'IN_STOCK'
+        """,
+        (envelope_type,),
+    )
+    row = cur.fetchone()
+    existing_count = row["cnt"] if row else 0
+
+    missing = max(0, summary["pallet_count"] - existing_count)
+    if missing == 0:
+        cur.close()
+        conn.close()
+        flash("No missing pallets to generate.", "success")
+        return redirect(url_for("envelope_type_detail", envelope_type=envelope_type))
+
+    prefix = envelope_type_prefix(envelope_type)
+
+    for _ in range(missing):
+        pallet_id = next_envelope_pallet_id(cur, envelope_type)
+        cur.execute(
+            """
+            INSERT INTO envelope_pallets (pallet_id, envelope_type, type_prefix, status)
+            VALUES (%s, %s, %s, 'IN_STOCK')
+            """,
+            (pallet_id, envelope_type, prefix),
+        )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash(f"Generated {missing} missing pallet ID(s).", "success")
+    return redirect(url_for("envelope_type_detail", envelope_type=envelope_type))
+    
 @app.route("/envelopes/type/<path:envelope_type>/reprint")
 @require_login
 @require_write
