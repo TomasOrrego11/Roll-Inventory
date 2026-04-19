@@ -28,7 +28,7 @@
             <div class="brand-title">Mittera Inventory</div>
             <span class="brand-pill">GROUP</span>
           </div>
-          <div class="brand-sub">Industrial roll management platform</div>
+          <div class="brand-sub">Industrial inventory platform</div>
         </div>
       </div>
 
@@ -37,8 +37,7 @@
           <button type="button" class="btn ghost" id="fullscreenBtn">Full Screen</button>
 
           {% set p = request.path %}
-          {% set is_envelope_module =
-             p.startswith('/envelopes') %}
+          {% set is_envelope_module = p.startswith('/envelopes') %}
           {% set is_roll_module =
              p.startswith('/rolls')
              or p.startswith('/inventory')
