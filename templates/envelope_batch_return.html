@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% set title = "Batch Return Envelopes" %}
+{% block content %}
+
+<div class="section-block">
+  <div class="card">
+    <div class="panel-head">
+      <div>
+        <div class="section-kicker">RETURN FROM USED</div>
+        <h3>Batch Return Envelope Pallets</h3>
+        <div class="hint" style="margin-top:8px;">
+          Scan or paste one pallet ID per line to return them from USED to active inventory.
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block">
+  <div class="card">
+    <form method="POST">
+      <label>Pallet IDs</label>
+      <textarea
+        name="pallet_ids"
+        rows="16"
+        placeholder="Paste or scan one pallet ID per line"
+        required
+      ></textarea>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="btn primary" type="submit">Return to Inventory</button>
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
