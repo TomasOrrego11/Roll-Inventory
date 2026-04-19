@@ -1004,7 +1004,7 @@ def generate_envelope_barcodes():
         flash("Quantity must be greater than 0.", "error")
         return redirect(url_for("generate_envelope_barcodes"))
 
-       conn = get_conn()
+    conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cur.execute(
@@ -1025,6 +1025,7 @@ def generate_envelope_barcodes():
 
     created_pallets = []
     prefix = envelope_type_prefix(envelope_type)
+
     for _ in range(qty):
         pallet_id = next_envelope_pallet_id(cur, envelope_type)
 
@@ -1036,13 +1037,15 @@ def generate_envelope_barcodes():
             (pallet_id, envelope_type, prefix),
         )
 
-        created_pallets.append({
-            "pallet_id": pallet_id,
-            "envelope_type": envelope_type,
-            "type_prefix": prefix,
-        })
+        created_pallets.append(
+            {
+                "pallet_id": pallet_id,
+                "envelope_type": envelope_type,
+                "type_prefix": prefix,
+            }
+        )
 
-        cur.execute(
+    cur.execute(
         """
         UPDATE envelope_inventory
         SET pallet_count = pallet_count + %s,
