@@ -51,9 +51,10 @@ def clean(s: str) -> str:
 def clean_envelope_name(s: str) -> str:
     s = (s or "").strip().upper()
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
-    s = s.replace("/", " ")
-    s = re.sub(r"[^A-Z0-9 ]+", " ", s)
+    s = s.replace("/", "-")
+    s = re.sub(r"[^A-Z0-9\- ]+", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"\s*-\s*", "-", s)
     return s
 
 
