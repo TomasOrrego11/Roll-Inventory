@@ -1366,6 +1366,81 @@ def reprint_envelope_barcodes(envelope_type):
         pallets=pallets,
     )
 
+@app.route("/envelopes/batch-remove", methods=["GET", "POST"])
+@require_login
+@require_write
+def envelope_batch_remove():
+    if request.method == "GET":
+        return render_template("envelope_batch_remove.html")
+
+    raw = clean(request.form.get("pallet_ids"))
+    if not raw:
+        flash("Paste or scan pallet IDs first.", "error")
+        return redirect(url_for("envelope_batch_remove"))
+
+    ids = [x.strip().upper() for x in re.split(r"[\s,;]+", raw) if x.strip()]
+    ids = list(dict.fromkeys(ids))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    moved = 0
+    missing = []
+    already_used = []
+
+    for pid in ids:
+        cur.execute(
+            """
+            SELECT pallet_id, envelope_type, status
+            FROM envelope_pallets
+            WHERE pallet_id = %s
+            """,
+            (pid,),
+        )
+        pallet = cur.fetchone()
+
+        if not pallet:
+            missing.append(pid)
+            continue
+
+        if pallet["status"] == "USED":
+            already_used.append(pid)
+            continue
+
+        cur.execute(
+            """
+            UPDATE envelope_pallets
+            SET status = 'USED'
+            WHERE pallet_id = %s
+            """,
+            (pid,),
+        )
+
+        cur.execute(
+            """
+            UPDATE envelope_inventory
+            SET pallet_count = GREATEST(0, pallet_count - 1),
+                updated_at = NOW()
+            WHERE envelope_type = %s
+            """,
+            (pallet["envelope_type"],),
+        )
+
+        moved += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    msg = f"Moved {moved} pallet(s) to USED."
+    if missing:
+        msg += f" Missing: {', '.join(missing[:10])}" + ("..." if len(missing) > 10 else "")
+    if already_used:
+        msg += f" Already USED: {', '.join(already_used[:10])}" + ("..." if len(already_used) > 10 else "")
+
+    flash(msg, "success" if moved else "error")
+    return redirect(url_for("envelope_batch_remove"))
+
 @app.route("/add/<warehouse>", methods=["GET", "POST"])
 @require_login
 @require_write
