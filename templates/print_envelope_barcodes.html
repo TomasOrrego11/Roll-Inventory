@@ -15,7 +15,7 @@
 
       <div class="panel-actions">
         <button class="btn primary" onclick="window.print()">Print</button>
-        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
+        <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back to Envelope Home</a>
       </div>
     </div>
   </div>
@@ -32,8 +32,8 @@
       <svg class="barcode"
            jsbarcode-value="{{ p.pallet_id }}"
            jsbarcode-format="CODE128"
-           jsbarcode-width="2"
-           jsbarcode-height="90"
+           jsbarcode-width="3.2"
+           jsbarcode-height="140"
            jsbarcode-displayvalue="false">
       </svg>
     </div>
@@ -52,46 +52,58 @@
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
-    padding: 20px 0;
+    padding: 0;
+    background: #ffffff;
   }
 
   .label-sheet {
     width: 8.5in;
-    min-height: 10.5in;
+    min-height: 11in;
     background: white;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    padding: 40px;
+    padding: 0.9in 0.7in;
   }
 
- .label-envelope-type {
-  font-size: 36px;
-  font-weight: 800;
-  text-align: center;
-  margin-bottom: 42px;
-  letter-spacing: 0.8px;
-  color: #111111;
-}
+  .label-envelope-type {
+    font-size: 54px;
+    line-height: 1.12;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 70px;
+    letter-spacing: 1.4px;
+    color: #000000;
+    text-transform: uppercase;
+    word-break: break-word;
+  }
 
-.barcode-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 34px;
-  width: 100%;
-}
+  .barcode-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 56px;
+    width: 100%;
+  }
 
-.label-manual-id {
-  font-size: 24px;
-  font-weight: 800;
-  text-align: center;
-  letter-spacing: 2px;
-  color: #000000;
-  margin-top: 10px;
-}
+  .barcode {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+  }
+
+  .label-manual-id {
+    font-size: 34px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: 4px;
+    color: #000000;
+    margin-top: 26px;
+    word-break: break-word;
+  }
 
   @media print {
     .no-print,
@@ -101,16 +113,17 @@
       display: none !important;
     }
 
-    body {
-      margin: 0;
-      background: white;
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
     }
 
     .main-container {
-      max-width: none;
-      width: 100%;
-      margin: 0;
-      padding: 0;
+      max-width: none !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     .section-block,
@@ -125,13 +138,12 @@
     .label-page {
       page-break-after: always;
       min-height: auto;
-      padding: 0;
     }
 
     .label-sheet {
       width: 100%;
       min-height: 100vh;
-      padding: 40px;
+      padding: 0.9in 0.7in;
     }
   }
 </style>
@@ -142,10 +154,10 @@
     document.querySelectorAll(".barcode").forEach(function (el) {
       JsBarcode(el, el.getAttribute("jsbarcode-value"), {
         format: el.getAttribute("jsbarcode-format") || "CODE128",
-        width: parseFloat(el.getAttribute("jsbarcode-width")) || 2,
-        height: parseFloat(el.getAttribute("jsbarcode-height")) || 90,
+        width: parseFloat(el.getAttribute("jsbarcode-width")) || 3.2,
+        height: parseFloat(el.getAttribute("jsbarcode-height")) || 140,
         displayValue: false,
-        margin: 10
+        margin: 16
       });
     });
   });
