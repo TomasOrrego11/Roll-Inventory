@@ -23,12 +23,12 @@
 
       <div class="panel-actions">
         {% if can_write() %}
-<a class="btn primary" href="{{ url_for('generate_envelope_barcodes') }}">Generate Barcodes</a>
-<a class="btn ghost" href="{{ url_for('use_envelopes') }}">Use Pallets</a>
-<a class="btn ghost" href="{{ url_for('envelope_batch_remove') }}">Batch Remove</a>
-<a class="btn ghost" href="{{ url_for('edit_envelope_name') }}">Manage Types</a>
+          <a class="btn primary" href="{{ url_for('generate_envelope_barcodes') }}">Generate Barcodes</a>
+          <a class="btn ghost" href="{{ url_for('envelopes_used_inventory') }}">Envelope Used Inventory</a>
+          <a class="btn ghost" href="{{ url_for('envelope_batch_return') }}">Batch Return</a>
+          <a class="btn ghost" href="{{ url_for('edit_envelope_name') }}">Manage Types</a>
         {% endif %}
-       <a class="btn ghost" href="{{ url_for('home') }}">Back to Choose Inventory</a>
+        <a class="btn ghost" href="{{ url_for('home') }}">Back to Choose Inventory</a>
       </div>
     </div>
   </div>
