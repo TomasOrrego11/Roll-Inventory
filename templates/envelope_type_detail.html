@@ -14,6 +14,7 @@
 
         <div class="stats-row" style="margin-top:12px;">
           <span class="badge ok">Total Pallets: {{ summary.pallet_count }}</span>
+          <span class="badge">Registered IDs: {{ pallets|length }}</span>
           {% if not can_write() %}
             <span class="badge">Read Only</span>
           {% endif %}
@@ -21,6 +22,11 @@
       </div>
 
       <div class="panel-actions">
+        {% if can_write() %}
+          <a class="btn primary" href="{{ url_for('reprint_envelope_barcodes', envelope_type=summary.envelope_type) }}">
+            Reprint Barcodes
+          </a>
+        {% endif %}
         <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Back</a>
       </div>
     </div>
@@ -45,6 +51,19 @@
 
           <div class="form-actions" style="margin-top:12px;">
             <button class="btn primary" type="submit">Save New Name</button>
+          </div>
+        </form>
+
+        <form method="POST"
+              action="{{ url_for('backfill_envelope_type', envelope_type=summary.envelope_type) }}"
+              style="margin-top:18px;">
+          <label>Generate Missing Pallet IDs</label>
+          <div class="hint" style="margin-top:6px;">
+            Use this for legacy inventory that has pallet count but no individual barcode records yet.
+          </div>
+
+          <div class="form-actions" style="margin-top:12px;">
+            <button class="btn ghost" type="submit">Backfill Missing Pallets</button>
           </div>
         </form>
       </div>
@@ -99,7 +118,7 @@
           {% if not pallets %}
           <tr>
             <td colspan="3" class="hint" style="padding:16px;">
-              No pallets found for this envelope type.
+              No pallet IDs exist yet for this type.
             </td>
           </tr>
           {% endif %}
