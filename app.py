@@ -1246,9 +1246,16 @@ def delete_envelope_type(envelope_type):
         "SELECT id FROM envelope_inventory WHERE envelope_type = %s",
         (envelope_type,),
     )
-    existing = cur.fetchone()
+    in_summary = cur.fetchone()
 
-    if not existing:
+    cur.execute(
+        "SELECT COUNT(*) AS cnt FROM envelope_pallets WHERE envelope_type = %s",
+        (envelope_type,),
+    )
+    pallet_row = cur.fetchone()
+    pallet_count = pallet_row["cnt"] if pallet_row else 0
+
+    if not in_summary and pallet_count == 0:
         cur.close()
         conn.close()
         flash("Envelope type not found.", "error")
@@ -1267,7 +1274,7 @@ def delete_envelope_type(envelope_type):
     cur.close()
     conn.close()
 
-    flash("Envelope type and all its pallets were deleted.", "success")
+    flash("Envelope type removed.", "success")
     return redirect(url_for("envelopes_home"))
 
 @app.route("/envelopes/type/<path:envelope_type>/backfill", methods=["POST"])
@@ -1493,6 +1500,122 @@ def add_form(warehouse):
     flash("Roll added.", "success")
     return redirect(url_for("add_form", warehouse=warehouse))
 
+@app.route("/envelopes/used")
+@require_login
+def envelopes_used_inventory():
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        """
+        SELECT
+            envelope_type,
+            COUNT(*) AS cnt
+        FROM envelope_pallets
+        WHERE status = 'USED'
+        GROUP BY envelope_type
+        ORDER BY envelope_type
+        """
+    )
+    summary = cur.fetchall() or []
+
+    cur.execute(
+        """
+        SELECT
+            envelope_type,
+            pallet_id,
+            status,
+            created_at
+        FROM envelope_pallets
+        WHERE status = 'USED'
+        ORDER BY envelope_type, pallet_id
+        """
+    )
+    pallets = cur.fetchall() or []
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "envelopes_used.html",
+        summary=summary,
+        pallets=pallets,
+    )
+
+@app.route("/envelopes/batch-return", methods=["GET", "POST"])
+@require_login
+@require_write
+def envelope_batch_return():
+    if request.method == "GET":
+        return render_template("envelope_batch_return.html")
+
+    raw = clean(request.form.get("pallet_ids"))
+    if not raw:
+        flash("Paste or scan pallet IDs first.", "error")
+        return redirect(url_for("envelope_batch_return"))
+
+    ids = [x.strip().upper() for x in re.split(r"[\s,;]+", raw) if x.strip()]
+    ids = list(dict.fromkeys(ids))
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    moved = 0
+    missing = []
+    not_used = []
+
+    for pid in ids:
+        cur.execute(
+            """
+            SELECT pallet_id, envelope_type, status
+            FROM envelope_pallets
+            WHERE pallet_id = %s
+            """,
+            (pid,),
+        )
+        pallet = cur.fetchone()
+
+        if not pallet:
+            missing.append(pid)
+            continue
+
+        if pallet["status"] != "USED":
+            not_used.append(pid)
+            continue
+
+        cur.execute(
+            """
+            UPDATE envelope_pallets
+            SET status = 'IN_STOCK'
+            WHERE pallet_id = %s
+            """,
+            (pid,),
+        )
+
+        cur.execute(
+            """
+            UPDATE envelope_inventory
+            SET pallet_count = pallet_count + 1,
+                updated_at = NOW()
+            WHERE envelope_type = %s
+            """,
+            (pallet["envelope_type"],),
+        )
+
+        moved += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    msg = f"Returned {moved} pallet(s) to inventory."
+    if missing:
+        msg += f" Missing: {', '.join(missing[:10])}" + ("..." if len(missing) > 10 else "")
+    if not_used:
+        msg += f" Not in USED: {', '.join(not_used[:10])}" + ("..." if len(not_used) > 10 else "")
+
+    flash(msg, "success" if moved else "error")
+    return redirect(url_for("envelope_batch_return"))
 
 @app.route("/inventory/<warehouse>")
 @require_login
