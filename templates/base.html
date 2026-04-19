@@ -35,7 +35,32 @@
       <div class="topbar-actions">
         {% if session.get("logged_in") %}
           <button type="button" class="btn ghost" id="fullscreenBtn">Full Screen</button>
-          <a class="btn ghost" href="{{ url_for('home') }}">Home</a>
+
+          {% set p = request.path %}
+          {% set is_envelope_module =
+             p.startswith('/envelopes') %}
+          {% set is_roll_module =
+             p.startswith('/rolls')
+             or p.startswith('/inventory')
+             or p.startswith('/inventory-summary')
+             or p.startswith('/add')
+             or p.startswith('/edit')
+             or p.startswith('/transfer')
+             or p.startswith('/transfer-batch')
+             or p.startswith('/remove')
+             or p.startswith('/remove-batch')
+             or p.startswith('/search') %}
+
+          {% if is_envelope_module %}
+            <a class="btn ghost" href="{{ url_for('envelopes_home') }}">Home</a>
+            <a class="btn ghost" href="{{ url_for('home') }}">Choose Inventory</a>
+          {% elif is_roll_module %}
+            <a class="btn ghost" href="{{ url_for('rolls_home') }}">Home</a>
+            <a class="btn ghost" href="{{ url_for('home') }}">Choose Inventory</a>
+          {% else %}
+            <a class="btn ghost" href="{{ url_for('home') }}">Choose Inventory</a>
+          {% endif %}
+
           <a class="btn ghost" href="{{ url_for('logout') }}">Logout</a>
         {% endif %}
       </div>
